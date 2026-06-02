@@ -4,7 +4,7 @@ import {
   parseNonEmptyString,
   parseTabLeavesCount,
 } from "@/lib/api/validation";
-import { gradeAnswers } from "@/lib/exam/questions";
+import { getExamQuestionCount, gradeAnswers } from "@/lib/exam/questions";
 import {
   EXAM_STATUS,
   submitCandidateExam,
@@ -24,7 +24,7 @@ export async function POST(request: Request) {
 
     const token = parseNonEmptyString(body.token, "token");
     const itemId = parseNonEmptyString(body.itemId, "itemId");
-    const answers = parseAnswersArray(body.answers);
+    const answers = parseAnswersArray(body.answers, getExamQuestionCount());
     const tabLeavesCount = parseTabLeavesCount(body.tabLeavesCount);
 
     if (!token || !itemId) {
@@ -34,9 +34,10 @@ export async function POST(request: Request) {
       );
     }
 
+    const questionCount = getExamQuestionCount();
     if (!answers) {
       return NextResponse.json(
-        { error: "Answers must be an array of 10 values" },
+        { error: `Answers must be an array of ${questionCount} values` },
         { status: 400 }
       );
     }

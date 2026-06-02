@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { parseNonEmptyString } from "@/lib/api/validation";
-import { EXAM_DURATION_MS, PUBLIC_QUESTIONS } from "@/lib/exam/questions";
+import { getExamDurationMs, getPublicQuestions } from "@/lib/exam/questions";
 import {
   EXAM_STATUS,
   startCandidateExam,
@@ -50,8 +50,8 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({
-      questions: PUBLIC_QUESTIONS,
-      durationMs: EXAM_DURATION_MS,
+      questions: getPublicQuestions(),
+      durationMs: getExamDurationMs(),
     });
   } catch (error) {
     console.error("[api/start]", error);

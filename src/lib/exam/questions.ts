@@ -16,53 +16,54 @@ export type PublicExamQuestion = {
 const EXAM_QUESTIONS: ExamQuestion[] = [
   {
     id: "q1",
-    prompt: "What does HTML stand for?",
+    prompt: "מה משמעות ראשי התיבות HTML?",
     options: [
-      "Hyper Text Markup Language",
-      "High Tech Modern Language",
-      "Home Tool Markup Language",
-      "Hyperlinks and Text Markup Language",
+      "Hyper Text Markup Language — שפת סימון של היפרטקסט",
+      "High Tech Modern Language — שפה מודרנית וטכנולוגית",
+      "Home Tool Markup Language — שפת סימון לכלי בית",
+      "Hyperlinks and Text Markup Language — קישורים וטקסט בשפת סימון",
     ],
     correctIndex: 0,
   },
   {
     id: "q2",
-    prompt: "Which HTTP method is typically used to retrieve data?",
+    prompt: "איזו שיטת HTTP משמשת בדרך כלל לאחזור מידע?",
     options: ["POST", "GET", "DELETE", "PATCH"],
     correctIndex: 1,
   },
   {
     id: "q3",
-    prompt: "In JavaScript, which keyword declares a block-scoped variable?",
+    prompt:
+      "ב-JavaScript, איזו מילת מפתח יוצרת משתנה עם סקופ ברמת בלוק?",
     options: ["var", "let", "function", "static"],
     correctIndex: 1,
   },
   {
     id: "q4",
-    prompt: "What is the time complexity of binary search on a sorted array?",
+    prompt: "מהי סיבוכיות הזמן של חיפוש בינארי במערך ממויין?",
     options: ["O(n)", "O(log n)", "O(n²)", "O(1)"],
     correctIndex: 1,
   },
   {
     id: "q5",
-    prompt: "Which data structure uses FIFO ordering?",
-    options: ["Stack", "Queue", "Tree", "Graph"],
+    prompt: "איזה מבנה נתונים פועל לפי FIFO (First In, First Out)?",
+    options: ["מחסנית (Stack)", "תור (Queue)", "עץ (Tree)", "גרף (Graph)"],
     correctIndex: 1,
   },
   {
     id: "q6",
-    prompt: "What does SQL stand for?",
+    prompt: "מה משמעות ראשי התיבות SQL?",
     options: [
-      "Structured Query Language",
-      "Simple Question Language",
-      "System Query Logic",
-      "Standard Question List",
+      "Structured Query Language — שפת שאילתות מובנית",
+      "Simple Question Language — שפת שאלות פשוטות",
+      "System Query Logic — לוגיקת שאילתות של מערכת",
+      "Standard Question List — רשימת שאלות סטנדרטית",
     ],
     correctIndex: 0,
   },
   {
     id: "q7",
-    prompt: "In Git, which command creates a new branch and switches to it?",
+    prompt: "ב-Git, איזו פקודה יוצרת branch חדש ומעבירה אליה מיד?",
     options: [
       "git merge",
       "git checkout -b",
@@ -73,49 +74,174 @@ const EXAM_QUESTIONS: ExamQuestion[] = [
   },
   {
     id: "q8",
-    prompt: "Which port is the default for HTTPS?",
+    prompt: "איזה פורט הוא ברירת המחדל ל-HTTPS?",
     options: ["80", "443", "8080", "22"],
     correctIndex: 1,
   },
   {
     id: "q9",
-    prompt: "What is the purpose of a primary key in a database table?",
+    prompt: "מה תפקידו של מפתח ראשי (Primary Key) בטבלת מסד נתונים?",
     options: [
-      "To uniquely identify each row",
-      "To encrypt data",
-      "To sort columns alphabetically",
-      "To store file attachments",
+      "כדי לזהות באופן ייחודי כל שורה",
+      "כדי להצפין נתונים",
+      "כדי למיין עמודות לפי אלפבית",
+      "כדי לאחסן קבצים מצורפים",
     ],
     correctIndex: 0,
   },
   {
     id: "q10",
-    prompt: "Which React hook runs side effects after render?",
+    prompt: "איזו Hook ב-React מריצה side effects לאחר ה-render?",
     options: ["useState", "useEffect", "useMemo", "useRef"],
     correctIndex: 1,
   },
 ];
 
-export const PUBLIC_QUESTIONS: PublicExamQuestion[] = EXAM_QUESTIONS.map(
-  ({ id, prompt, options }) => ({ id, prompt, options })
-);
+const DEFAULT_EXAM_TITLE = "מבחן טכני";
+let examTitle = DEFAULT_EXAM_TITLE;
+let examDurationMs = EXAM_DURATION_MS;
+let examQuestions: ExamQuestion[] = EXAM_QUESTIONS.map((question) => ({
+  ...question,
+  options: [...question.options],
+}));
 
-const QUESTION_ORDER = EXAM_QUESTIONS.map((q) => q.id);
+function clonePublicQuestion(question: ExamQuestion): PublicExamQuestion {
+  return {
+    id: question.id,
+    prompt: question.prompt,
+    options: [...question.options],
+  };
+}
+
+function clonePrivateQuestion(question: ExamQuestion): ExamQuestion {
+  return {
+    id: question.id,
+    prompt: question.prompt,
+    options: [...question.options],
+    correctIndex: question.correctIndex,
+  };
+}
+
+function normalizeQuestionId(index: number): string {
+  return `q${index + 1}`;
+}
+
+function normalizeQuestions(questions: ExamQuestion[]): ExamQuestion[] {
+  return questions.map((question, index) => ({
+    ...clonePrivateQuestion(question),
+    id: normalizeQuestionId(index),
+  }));
+}
+
+export function getPublicQuestions(): PublicExamQuestion[] {
+  return examQuestions.map(clonePublicQuestion);
+}
+
+export function getExamDurationMs(): number {
+  return examDurationMs;
+}
+
+export function getExamQuestionCount(): number {
+  return examQuestions.length;
+}
+
+export function getAdminEditableExam() {
+  return {
+    title: examTitle,
+    durationMinutes: Math.round(examDurationMs / 60000),
+    questions: examQuestions.map(clonePrivateQuestion),
+  };
+}
+
+type UpdateExamInputQuestion = {
+  prompt: string;
+  options: string[];
+  correctIndex: number;
+};
+
+export type UpdateExamInput = {
+  title: string;
+  durationMinutes: number;
+  questions: UpdateExamInputQuestion[];
+};
+
+export function updateExamDefinition(input: UpdateExamInput) {
+  const nextTitle = input.title.trim();
+  if (!nextTitle) {
+    throw new Error("יש להזין שם למבחן.");
+  }
+
+  if (
+    !Number.isInteger(input.durationMinutes) ||
+    input.durationMinutes < 5 ||
+    input.durationMinutes > 180
+  ) {
+    throw new Error("משך המבחן חייב להיות בין 5 ל-180 דקות.");
+  }
+
+  if (!Array.isArray(input.questions) || input.questions.length === 0) {
+    throw new Error("יש להזין לפחות שאלה אחת.");
+  }
+
+  const parsedQuestions: ExamQuestion[] = input.questions.map((question, index) => {
+    const prompt = question.prompt.trim();
+    if (!prompt) {
+      throw new Error(`בשאלה ${index + 1} חסר נוסח שאלה.`);
+    }
+
+    if (!Array.isArray(question.options) || question.options.length < 2) {
+      throw new Error(`בשאלה ${index + 1} נדרשות לפחות שתי אפשרויות.`);
+    }
+
+    const options = question.options.map((option, optionIndex) => {
+      const value = option.trim();
+      if (!value) {
+        throw new Error(
+          `בשאלה ${index + 1}, אפשרות ${optionIndex + 1} ריקה.`
+        );
+      }
+      return value;
+    });
+
+    if (
+      !Number.isInteger(question.correctIndex) ||
+      question.correctIndex < 0 ||
+      question.correctIndex >= options.length
+    ) {
+      throw new Error(`בשאלה ${index + 1} התשובה הנכונה לא תקינה.`);
+    }
+
+    return {
+      id: normalizeQuestionId(index),
+      prompt,
+      options,
+      correctIndex: question.correctIndex,
+    };
+  });
+
+  examTitle = nextTitle;
+  examDurationMs = input.durationMinutes * 60 * 1000;
+  examQuestions = normalizeQuestions(parsedQuestions);
+}
 
 /**
  * Grades answers in question order (q1..q10). Each correct answer = 10 points.
  */
 export function gradeAnswers(answers: (number | null)[]): number {
+  if (answers.length !== examQuestions.length || examQuestions.length === 0) {
+    return 0;
+  }
+
   let correct = 0;
-  for (let i = 0; i < EXAM_QUESTIONS.length; i++) {
+  for (let i = 0; i < examQuestions.length; i++) {
     const selected = answers[i] ?? null;
-    if (selected === EXAM_QUESTIONS[i].correctIndex) {
+    if (selected === examQuestions[i].correctIndex) {
       correct++;
     }
   }
-  return correct * 10;
+  return Math.round((correct / examQuestions.length) * 100);
 }
 
 export function getQuestionIds(): string[] {
-  return [...QUESTION_ORDER];
+  return examQuestions.map((q) => q.id);
 }

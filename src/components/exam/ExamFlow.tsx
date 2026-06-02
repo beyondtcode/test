@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { EXAM_DURATION_MS } from "@/lib/exam/questions";
 import type { PublicExamQuestion } from "@/lib/exam/questions";
 import {
   answersRecordToArray,
@@ -273,6 +274,7 @@ export function ExamFlow() {
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [starting, setStarting] = useState(false);
   const [timerVisible, setTimerVisible] = useState(true);
+  const [examDurationMs, setExamDurationMs] = useState(EXAM_DURATION_MS);
 
   const sessionRef = useRef<ExamSession | null>(null);
   const lastFocusEventRef = useRef(0);
@@ -431,6 +433,7 @@ export function ExamFlow() {
         setTabLeaves(stored.tabLeaves);
         setEndsAt(stored.endsAt);
         setRemainingMs(stored.endsAt - Date.now());
+        setExamDurationMs(stored.durationMs ?? EXAM_DURATION_MS);
         setView("exam");
         return;
       }
@@ -444,6 +447,7 @@ export function ExamFlow() {
           email: "",
           jobPosition: stored.jobPosition ?? "",
         });
+        setExamDurationMs(stored.durationMs ?? EXAM_DURATION_MS);
         setView("welcome");
         return;
       }
@@ -486,6 +490,7 @@ export function ExamFlow() {
           answers: {},
           tabLeaves: 0,
           phase: "welcome",
+          durationMs: EXAM_DURATION_MS,
         };
         sessionRef.current = session;
         saveExamSession(session);
@@ -536,7 +541,7 @@ export function ExamFlow() {
       }
 
       const examQuestions = data.questions ?? [];
-      const durationMs = data.durationMs ?? 50 * 60 * 1000;
+      const durationMs = data.durationMs ?? EXAM_DURATION_MS;
       const newEndsAt = Date.now() + durationMs;
       const initialAnswers: Record<string, number | null> = {};
       for (const q of examQuestions) {
@@ -553,6 +558,7 @@ export function ExamFlow() {
         tabLeaves: 0,
         phase: "exam",
         questions: examQuestions,
+        durationMs,
       };
 
       sessionRef.current = session;
@@ -562,6 +568,7 @@ export function ExamFlow() {
       setTabLeaves(0);
       setEndsAt(newEndsAt);
       setRemainingMs(durationMs);
+      setExamDurationMs(durationMs);
       setView("exam");
     } catch (err) {
       setErrorMessage(
@@ -624,7 +631,10 @@ export function ExamFlow() {
                 כללי המבחן
               </h2>
               <ul className="mt-3 list-inside list-disc space-y-2.5 text-sm leading-relaxed text-slate-700">
-                <li>יש לך מגבלת זמן קשיחה של 50 דקות.</li>
+                <li>
+                  יש לך מגבלת זמן קשיחה של{" "}
+                  {Math.round(examDurationMs / 60000)} דקות.
+                </li>
                 <li>לא ניתן להשהות את הטיימר לאחר תחילת המבחן.</li>
                 <li>המבחן יוגש אוטומטית עם סיום הזמן.</li>
                 <li>

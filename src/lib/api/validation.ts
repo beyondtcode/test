@@ -8,8 +8,16 @@ export function parseNonEmptyString(
   return value.trim();
 }
 
-export function parseAnswersArray(value: unknown): (number | null)[] | null {
-  if (!Array.isArray(value) || value.length !== 10) {
+export function parseAnswersArray(
+  value: unknown,
+  expectedLength: number
+): (number | null)[] | null {
+  if (
+    !Array.isArray(value) ||
+    !Number.isInteger(expectedLength) ||
+    expectedLength <= 0 ||
+    value.length !== expectedLength
+  ) {
     return null;
   }
   const parsed: (number | null)[] = [];

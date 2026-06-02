@@ -14,6 +14,7 @@ export type ExamSession = {
   tabLeaves: number;
   phase: ExamPhase;
   questions?: PublicExamQuestion[];
+  durationMs?: number;
 };
 
 export function loadExamSession(): ExamSession | null {
