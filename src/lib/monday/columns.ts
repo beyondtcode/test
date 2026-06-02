@@ -7,7 +7,15 @@ export const MONDAY_COLUMNS = {
   startTime: "date_mm3xk9m5",
   grade: "numeric_mm3x35gv",
   tabLeaves: "numeric_mm3x9dsz",
+  statusConfirm: "status_confirm",
 } as const;
+
+export const CONFIRM_STATUS = {
+  APPROVED: "אושר",
+  POSTPONED: "נדחה",
+} as const;
+
+export type ConfirmStatus = (typeof CONFIRM_STATUS)[keyof typeof CONFIRM_STATUS];
 
 export const EXAM_STATUS = {
   NOT_STARTED: "טרם התחיל",

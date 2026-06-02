@@ -1,5 +1,6 @@
 import { mondayConfig } from "@/lib/env";
 import { EXAM_STATUS, MONDAY_COLUMNS } from "./columns";
+import type { ConfirmStatus } from "./columns";
 import type {
   CandidateRecord,
   ChangeMultipleColumnValuesData,
@@ -204,3 +205,37 @@ export async function verifyCandidateToken(
   }
   return candidate;
 }
+
+export async function updateCandidateConfirmStatus(
+  itemId: string,
+  status: ConfirmStatus
+): Promise<void> {
+  const columnValues = JSON.stringify({
+    [MONDAY_COLUMNS.statusConfirm]: { label: status },
+  });
+
+  await mondayFetch<ChangeMultipleColumnValuesData>({
+    query: `
+      mutation UpdateCandidateConfirmStatus(
+        $boardId: ID!
+        $itemId: ID!
+        $columnValues: JSON!
+      ) {
+        change_multiple_column_values(
+          board_id: $boardId
+          item_id: $itemId
+          column_values: $columnValues
+          create_labels_if_missing: true
+        ) {
+          id
+        }
+      }
+    `,
+    variables: {
+      boardId: mondayConfig.boardId,
+      itemId,
+      columnValues,
+    },
+  });
+}
+
