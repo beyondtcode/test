@@ -12,6 +12,7 @@ import {
 export const runtime = "nodejs";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const LOCAL_FALLBACK_APP_URL = "http://localhost:3000";
 
 function getRequestOrigin(request: Request): string {
   // Prefer proxy headers (works in Vercel), otherwise fall back to request.url.
@@ -23,6 +24,12 @@ function getRequestOrigin(request: Request): string {
   const host = forwardedHost?.split(",")[0]?.trim() || url.host;
 
   return `${proto}://${host}`;
+}
+
+function getAppBaseUrl(): string {
+  const rawBaseUrl =
+    process.env.NEXT_PUBLIC_APP_URL?.trim() || LOCAL_FALLBACK_APP_URL;
+  return rawBaseUrl.replace(/\/+$/, "");
 }
 
 export async function POST(request: Request) {
@@ -38,19 +45,19 @@ export async function POST(request: Request) {
       );
     }
 
-    const expectedOrigin = getRequestOrigin(request);
+    const requestExpectedOrigin = getRequestOrigin(request);
     const requestOrigin = request.headers.get("origin");
     const referer = request.headers.get("referer");
 
     // CSRF mitigation: only allow requests from the same origin.
-    if (requestOrigin && requestOrigin !== expectedOrigin) {
+    if (requestOrigin && requestOrigin !== requestExpectedOrigin) {
       return NextResponse.json(
         { error: "בקשה לא מורשית." },
         { status: 403 }
       );
     }
 
-    if (referer && !referer.startsWith(expectedOrigin)) {
+    if (referer && !referer.startsWith(requestExpectedOrigin)) {
       return NextResponse.json(
         { error: "בקשה לא מורשית." },
         { status: 403 }
@@ -116,9 +123,10 @@ export async function POST(request: Request) {
       },
     });
 
-    const link = `${expectedOrigin}/test?token=${encodeURIComponent(token)}`;
+    const baseUrl = getAppBaseUrl();
+    const link = `${baseUrl}/test?token=${encodeURIComponent(token)}`;
 
-    return NextResponse.json({ link });
+    return NextResponse.json({ link, token });
   } catch (error) {
     console.error("[api/admin/create-candidate]", error);
     return NextResponse.json(

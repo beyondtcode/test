@@ -3,8 +3,16 @@
 import { useMemo, useState, type FormEvent } from "react";
 
 type CreateCandidateResponse =
-  | { link: string; error?: undefined }
+  | { link: string; token: string; error?: undefined }
   | { link?: undefined; error: string };
+
+const LOCAL_FALLBACK_APP_URL = "http://localhost:3000";
+
+function getClientAppBaseUrl(): string {
+  const configuredBaseUrl =
+    process.env.NEXT_PUBLIC_APP_URL?.trim() || LOCAL_FALLBACK_APP_URL;
+  return configuredBaseUrl.replace(/\/+$/, "");
+}
 
 export function AdminCreateCandidateForm() {
   const [name, setName] = useState("");
@@ -14,8 +22,12 @@ export function AdminCreateCandidateForm() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [createdLink, setCreatedLink] = useState<string | null>(null);
+  const [createdToken, setCreatedToken] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const baseUrl = getClientAppBaseUrl();
+  const createdLink = createdToken
+    ? `${baseUrl}/test?token=${encodeURIComponent(createdToken)}`
+    : null;
 
   const canSubmit = useMemo(() => {
     return name.trim() && email.trim() && jobPosition.trim() && !submitting;
@@ -44,8 +56,8 @@ export function AdminCreateCandidateForm() {
         return;
       }
 
-      if ("link" in data && data.link) {
-        setCreatedLink(data.link);
+      if ("token" in data && data.token) {
+        setCreatedToken(data.token);
         setName("");
         setEmail("");
         setJobPosition("");
