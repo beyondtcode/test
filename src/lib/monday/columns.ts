@@ -7,7 +7,8 @@ export const MONDAY_COLUMNS = {
   startTime: "date_mm3xk9m5",
   grade: "numeric_mm3x35gv",
   tabLeaves: "numeric_mm3x9dsz",
-  statusConfirm: "status_confirm",
+  /** Board column "אישור מועמד" (labels: אושר, נדחה, ממתין לאישור) */
+  statusConfirm: "color_mm3y4vv1",
 } as const;
 
 export const CONFIRM_STATUS = {
