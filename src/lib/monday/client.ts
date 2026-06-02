@@ -1,0 +1,206 @@
+import { mondayConfig } from "@/lib/env";
+import { EXAM_STATUS, MONDAY_COLUMNS } from "./columns";
+import type {
+  CandidateRecord,
+  ChangeMultipleColumnValuesData,
+  ItemsPageByColumnValuesData,
+} from "./types";
+import { parseColumnText } from "./types";
+
+const MONDAY_API_URL = "https://api.monday.com/v2";
+
+type MondayFetchOptions = {
+  query: string;
+  variables?: Record<string, unknown>;
+};
+
+/**
+ * Minimal Monday.com GraphQL client (server-side only).
+ */
+export async function mondayFetch<T>({
+  query,
+  variables,
+}: MondayFetchOptions): Promise<T> {
+  const response = await fetch(MONDAY_API_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: mondayConfig.apiKey,
+      "API-Version": "2024-10",
+    },
+    body: JSON.stringify({ query, variables }),
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `Monday API error: ${response.status} ${response.statusText}`
+    );
+  }
+
+  const json = (await response.json()) as {
+    data?: T;
+    errors?: Array<{ message: string }>;
+  };
+
+  if (json.errors?.length) {
+    throw new Error(json.errors.map((e) => e.message).join("; "));
+  }
+
+  if (!json.data) {
+    throw new Error("Monday API returned no data");
+  }
+
+  return json.data;
+}
+
+function formatMondayDateTime(date: Date): { date: string; time: string } {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const dateStr = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  const timeStr = `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+  return { date: dateStr, time: timeStr };
+}
+
+const GET_CANDIDATE_BY_TOKEN = `
+  query GetCandidateByToken($boardId: ID!, $token: String!) {
+    items_page_by_column_values(
+      board_id: $boardId
+      limit: 1
+      columns: [
+        {
+          column_id: "${MONDAY_COLUMNS.magicLinkToken}"
+          column_values: [$token]
+        }
+      ]
+    ) {
+      items {
+        id
+        name
+        column_values(ids: ["${MONDAY_COLUMNS.email}", "${MONDAY_COLUMNS.jobPosition}", "${MONDAY_COLUMNS.examStatus}"]) {
+          id
+          text
+        }
+      }
+    }
+  }
+`;
+
+export async function getCandidateByToken(
+  token: string
+): Promise<CandidateRecord | null> {
+  const data = await mondayFetch<ItemsPageByColumnValuesData>({
+    query: GET_CANDIDATE_BY_TOKEN,
+    variables: {
+      boardId: mondayConfig.boardId,
+      token,
+    },
+  });
+
+  const item = data.items_page_by_column_values.items[0];
+  if (!item) {
+    return null;
+  }
+
+  const email = parseColumnText(item.column_values, MONDAY_COLUMNS.email);
+  const jobPosition = parseColumnText(
+    item.column_values,
+    MONDAY_COLUMNS.jobPosition
+  );
+  const statusText = parseColumnText(
+    item.column_values,
+    MONDAY_COLUMNS.examStatus
+  );
+
+  const statusValues = Object.values(EXAM_STATUS) as string[];
+  const status = statusValues.includes(statusText)
+    ? (statusText as CandidateRecord["status"])
+    : EXAM_STATUS.NOT_STARTED;
+
+  return {
+    itemId: item.id,
+    name: item.name,
+    email,
+    jobPosition,
+    status,
+  };
+}
+
+export async function startCandidateExam(itemId: string): Promise<void> {
+  const { date, time } = formatMondayDateTime(new Date());
+  const columnValues = JSON.stringify({
+    [MONDAY_COLUMNS.examStatus]: { label: EXAM_STATUS.IN_PROGRESS },
+    [MONDAY_COLUMNS.startTime]: { date, time },
+  });
+
+  await mondayFetch<ChangeMultipleColumnValuesData>({
+    query: `
+      mutation StartCandidateExam(
+        $boardId: ID!
+        $itemId: ID!
+        $columnValues: JSON!
+      ) {
+        change_multiple_column_values(
+          board_id: $boardId
+          item_id: $itemId
+          column_values: $columnValues
+          create_labels_if_missing: true
+        ) {
+          id
+        }
+      }
+    `,
+    variables: {
+      boardId: mondayConfig.boardId,
+      itemId,
+      columnValues,
+    },
+  });
+}
+
+export async function submitCandidateExam(
+  itemId: string,
+  score: number,
+  tabLeaves: number,
+  status: string
+): Promise<void> {
+  const columnValues = JSON.stringify({
+    [MONDAY_COLUMNS.grade]: score,
+    [MONDAY_COLUMNS.tabLeaves]: tabLeaves,
+    [MONDAY_COLUMNS.examStatus]: { label: status },
+  });
+
+  await mondayFetch<ChangeMultipleColumnValuesData>({
+    query: `
+      mutation SubmitCandidateExam(
+        $boardId: ID!
+        $itemId: ID!
+        $columnValues: JSON!
+      ) {
+        change_multiple_column_values(
+          board_id: $boardId
+          item_id: $itemId
+          column_values: $columnValues
+          create_labels_if_missing: true
+        ) {
+          id
+        }
+      }
+    `,
+    variables: {
+      boardId: mondayConfig.boardId,
+      itemId,
+      columnValues,
+    },
+  });
+}
+
+export async function verifyCandidateToken(
+  token: string,
+  itemId: string
+): Promise<CandidateRecord | null> {
+  const candidate = await getCandidateByToken(token);
+  if (!candidate || candidate.itemId !== itemId) {
+    return null;
+  }
+  return candidate;
+}
