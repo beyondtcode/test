@@ -24,8 +24,9 @@ function getRequestOrigin(request: Request): string {
   return `${proto}://${host}`;
 }
 
-function ensureAdminSession(): NextResponse | null {
-  const sessionValue = cookies().get(ADMIN_SESSION_COOKIE_NAME)?.value;
+async function ensureAdminSession(): Promise<NextResponse | null> {
+  const cookieStore = await cookies();
+  const sessionValue = cookieStore.get(ADMIN_SESSION_COOKIE_NAME)?.value;
   if (!verifyAdminSessionCookieValue(sessionValue)) {
     return NextResponse.json(
       { error: "אין לך הרשאה לבצע פעולה זו." },
@@ -52,7 +53,7 @@ function isSameOriginRequest(request: Request): boolean {
 }
 
 export async function GET() {
-  const unauthorized = ensureAdminSession();
+  const unauthorized = await ensureAdminSession();
   if (unauthorized) {
     return unauthorized;
   }
@@ -61,7 +62,7 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
-  const unauthorized = ensureAdminSession();
+  const unauthorized = await ensureAdminSession();
   if (unauthorized) {
     return unauthorized;
   }

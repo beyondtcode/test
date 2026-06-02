@@ -9,8 +9,8 @@ const heebo = Heebo({
   weight: ["400", "500", "600", "700"],
 });
 
-export default function AdminDashboardPage() {
-  const isAuthed = isAdminSessionValidFromCookies();
+export default async function AdminDashboardPage() {
+  const isAuthed = await isAdminSessionValidFromCookies();
 
   return (
     <main

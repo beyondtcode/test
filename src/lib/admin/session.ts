@@ -81,8 +81,9 @@ export function verifyAdminSessionCookieValue(
   return timingSafeEqualBase64Url(signature, expectedSignature);
 }
 
-export function isAdminSessionValidFromCookies(): boolean {
-  const value = cookies().get(ADMIN_SESSION_COOKIE_NAME)?.value;
+export async function isAdminSessionValidFromCookies(): Promise<boolean> {
+  const cookieStore = await cookies();
+  const value = cookieStore.get(ADMIN_SESSION_COOKIE_NAME)?.value;
   return verifyAdminSessionCookieValue(value);
 }
 

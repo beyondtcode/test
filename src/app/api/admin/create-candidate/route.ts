@@ -28,7 +28,8 @@ function getRequestOrigin(request: Request): string {
 export async function POST(request: Request) {
   try {
     // Verify admin session via signed HttpOnly cookie.
-    const sessionValue = cookies().get(ADMIN_SESSION_COOKIE_NAME)?.value;
+    const cookieStore = await cookies();
+    const sessionValue = cookieStore.get(ADMIN_SESSION_COOKIE_NAME)?.value;
 
     if (!verifyAdminSessionCookieValue(sessionValue)) {
       return NextResponse.json(
