@@ -70,7 +70,7 @@ export async function POST(request: Request) {
 
     const score = gradeAnswers(answers);
     const status =
-      tabLeavesCount > 3 ? EXAM_STATUS.BLOCKED : EXAM_STATUS.SUBMITTED;
+      tabLeavesCount > 0 ? EXAM_STATUS.BLOCKED : EXAM_STATUS.SUBMITTED;
 
     await submitCandidateExam(itemId, score, tabLeavesCount, status);
 

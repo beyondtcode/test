@@ -25,8 +25,10 @@ type AuthSuccess = {
   jobPosition: string;
 };
 
-const TAB_LEAVE_LIMIT = 3;
+const TAB_LEAVE_LIMIT = 1;
 const FOCUS_DEBOUNCE_MS = 500;
+const ONE_LEAVE_BLOCK_MESSAGE =
+  "עזבת את מסך המבחן. לפי הנהלים, יציאה אחת בלבד חוסמת את המבחן באופן מיידי.";
 
 const ACCESS_DENIED_MESSAGE =
   "אין לך גישה למבחן זה. ייתכן שהקישור פג תוקף, המבחן כבר הוגש, או שגישתך נחסמה. נא לפנות למנהל הגיוס לבירור המשך התהליך.";
@@ -360,14 +362,12 @@ export function ExamFlow() {
     setTabLeaves(nextTabLeaves);
     persistSession({ tabLeaves: nextTabLeaves });
 
-    if (nextTabLeaves > TAB_LEAVE_LIMIT) {
+    if (nextTabLeaves >= TAB_LEAVE_LIMIT) {
+      window.alert(ONE_LEAVE_BLOCK_MESSAGE);
       void submitExam(nextTabLeaves, true);
       return;
     }
 
-    window.alert(
-      `אזהרה: יצאת מטאב המבחן. זוהי אזהרה ${nextTabLeaves} מתוך ${TAB_LEAVE_LIMIT}. יותר מ-${TAB_LEAVE_LIMIT} פעמים תגרום לחסימת המבחן.`
-    );
   }, [persistSession, submitExam, submitting]);
 
   useEffect(() => {
@@ -637,8 +637,9 @@ export function ExamFlow() {
                 </li>
                 <li>לא ניתן להשהות את הטיימר לאחר תחילת המבחן.</li>
                 <li>המבחן יוגש אוטומטית עם סיום הזמן.</li>
-                <li>
-                  אין לעבור לטאבים אחרים — יותר מ-3 מעברים יחסמו את המבחן.
+                <li className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 font-semibold text-red-800">
+                  חשוב מאוד: אסור לצאת ממסך המבחן. יציאה אחת בלבד תחסום את
+                  המבחן באופן מיידי.
                 </li>
                 <li>ההתקדמות נשמרת מקומית במקרה של רענון הדף.</li>
               </ul>
