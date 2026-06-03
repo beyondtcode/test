@@ -231,6 +231,41 @@ export async function verifyCandidateToken(
   return candidate;
 }
 
+/** Re-applies scheduled exam date after Monday automations (e.g. send test details). */
+export async function updateCandidateScheduledAt(
+  itemId: string,
+  scheduledAt: Date
+): Promise<void> {
+  const { date, time } = formatMondayDateTime(scheduledAt);
+  const columnValues = JSON.stringify({
+    [MONDAY_COLUMNS.scheduledAt]: { date, time },
+  });
+
+  await mondayFetch<ChangeMultipleColumnValuesData>({
+    query: `
+      mutation UpdateCandidateScheduledAt(
+        $boardId: ID!
+        $itemId: ID!
+        $columnValues: JSON!
+      ) {
+        change_multiple_column_values(
+          board_id: $boardId
+          item_id: $itemId
+          column_values: $columnValues
+          create_labels_if_missing: true
+        ) {
+          id
+        }
+      }
+    `,
+    variables: {
+      boardId: mondayConfig.boardId,
+      itemId,
+      columnValues,
+    },
+  });
+}
+
 export async function updateCandidateConfirmStatus(
   itemId: string,
   status: ConfirmStatus

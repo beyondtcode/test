@@ -5,6 +5,7 @@ export {
   submitCandidateExam,
   verifyCandidateToken,
   updateCandidateConfirmStatus,
+  updateCandidateScheduledAt,
 } from "./client";
 export {
   MONDAY_COLUMNS,

@@ -12,6 +12,7 @@ import {
   EXAM_STATUS,
   MONDAY_COLUMNS,
   MONDAY_TEAM_EMAIL,
+  updateCandidateScheduledAt,
 } from "@/lib/monday";
 import { mondayConfig } from "@/lib/env";
 import {
@@ -168,7 +169,9 @@ export async function POST(request: Request) {
       }
     `;
 
-    await mondayFetch<{ create_item: { id: string } }>({
+    const { create_item: createdItem } = await mondayFetch<{
+      create_item: { id: string };
+    }>({
       query,
       variables: {
         boardId: mondayConfig.boardId,
@@ -176,6 +179,9 @@ export async function POST(request: Request) {
         columnValues,
       },
     });
+
+    // Monday send-test-details automation can clear the date column; restore admin input.
+    await updateCandidateScheduledAt(createdItem.id, scheduledAt);
 
     const baseUrl = getAppBaseUrl();
     const link = `${baseUrl}/test?token=${encodeURIComponent(token)}`;
