@@ -1,3 +1,4 @@
+import type { ExamTypeId } from "./exam-types";
 import type { PublicExamQuestion } from "./questions";
 
 export const EXAM_SESSION_KEY = "exam_session_v1";
@@ -9,6 +10,9 @@ export type ExamSession = {
   itemId: string;
   name: string;
   jobPosition?: string;
+  examTypeId?: ExamTypeId;
+  examTypeLabel?: string;
+  candidateSource?: string;
   endsAt: number;
   answers: Record<string, number | null>;
   tabLeaves: number;

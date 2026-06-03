@@ -1,3 +1,4 @@
+import { examTypeIdFromMondayLabel } from "@/lib/exam/exam-types";
 import { mondayConfig } from "@/lib/env";
 import { EXAM_STATUS, MONDAY_COLUMNS } from "./columns";
 import type { ConfirmStatus } from "./columns";
@@ -7,6 +8,14 @@ import type {
   ItemsPageByColumnValuesData,
 } from "./types";
 import { parseColumnText } from "./types";
+
+const CANDIDATE_FETCH_COLUMN_IDS = [
+  MONDAY_COLUMNS.email,
+  MONDAY_COLUMNS.examType,
+  MONDAY_COLUMNS.candidateSource,
+  MONDAY_COLUMNS.examStatus,
+  MONDAY_COLUMNS.jobPosition,
+] as const;
 
 const MONDAY_API_URL = "https://api.monday.com/v2";
 
@@ -77,7 +86,7 @@ const GET_CANDIDATE_BY_TOKEN = `
       items {
         id
         name
-        column_values(ids: ["${MONDAY_COLUMNS.email}", "${MONDAY_COLUMNS.jobPosition}", "${MONDAY_COLUMNS.examStatus}"]) {
+        column_values(ids: ["${CANDIDATE_FETCH_COLUMN_IDS.join('", "')}"]) {
           id
           text
         }
@@ -107,6 +116,19 @@ export async function getCandidateByToken(
     item.column_values,
     MONDAY_COLUMNS.jobPosition
   );
+  const examTypeLabel = parseColumnText(
+    item.column_values,
+    MONDAY_COLUMNS.examType
+  );
+  const examTypeId = examTypeIdFromMondayLabel(examTypeLabel);
+  if (!examTypeId) {
+    return null;
+  }
+
+  const candidateSource = parseColumnText(
+    item.column_values,
+    MONDAY_COLUMNS.candidateSource
+  );
   const statusText = parseColumnText(
     item.column_values,
     MONDAY_COLUMNS.examStatus
@@ -122,6 +144,9 @@ export async function getCandidateByToken(
     name: item.name,
     email,
     jobPosition,
+    examTypeId,
+    examTypeLabel,
+    candidateSource,
     status,
   };
 }

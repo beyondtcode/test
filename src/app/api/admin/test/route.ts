@@ -4,6 +4,7 @@ import {
   ADMIN_SESSION_COOKIE_NAME,
   verifyAdminSessionCookieValue,
 } from "@/lib/admin/session";
+import { isExamTypeId } from "@/lib/exam/exam-types";
 import {
   getAdminEditableExam,
   type UpdateExamInput,
@@ -52,13 +53,26 @@ function isSameOriginRequest(request: Request): boolean {
   return true;
 }
 
-export async function GET() {
+function parseExamTypeFromUrl(request: Request): string | null {
+  const examTypeId = new URL(request.url).searchParams.get("examTypeId");
+  return examTypeId?.trim() || null;
+}
+
+export async function GET(request: Request) {
   const unauthorized = await ensureAdminSession();
   if (unauthorized) {
     return unauthorized;
   }
 
-  return NextResponse.json(getAdminEditableExam());
+  const examTypeId = parseExamTypeFromUrl(request);
+  if (!examTypeId || !isExamTypeId(examTypeId)) {
+    return NextResponse.json(
+      { error: "יש לציין סוג מבחן תקין (examTypeId)." },
+      { status: 400 }
+    );
+  }
+
+  return NextResponse.json(getAdminEditableExam(examTypeId));
 }
 
 export async function PUT(request: Request) {
@@ -71,10 +85,18 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: "בקשה לא מורשית." }, { status: 403 });
   }
 
+  const examTypeId = parseExamTypeFromUrl(request);
+  if (!examTypeId || !isExamTypeId(examTypeId)) {
+    return NextResponse.json(
+      { error: "יש לציין סוג מבחן תקין (examTypeId)." },
+      { status: 400 }
+    );
+  }
+
   try {
     const body = (await request.json()) as Partial<UpdateExamInput>;
 
-    updateExamDefinition({
+    updateExamDefinition(examTypeId, {
       title: body.title ?? "",
       durationMinutes: body.durationMinutes ?? 0,
       questions: body.questions ?? [],
@@ -82,7 +104,7 @@ export async function PUT(request: Request) {
 
     return NextResponse.json({
       ok: true,
-      exam: getAdminEditableExam(),
+      exam: getAdminEditableExam(examTypeId),
     });
   } catch (error) {
     if (error instanceof Error) {

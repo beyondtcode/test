@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { parseNonEmptyString } from "@/lib/api/validation";
+import { EXAM_LOAD_ERROR_HE } from "@/lib/exam/errors";
 import { getExamDurationMs, getPublicQuestions } from "@/lib/exam/questions";
 import {
   EXAM_STATUS,
@@ -20,44 +21,36 @@ export async function POST(request: Request) {
     const itemId = parseNonEmptyString(body.itemId, "itemId");
 
     if (!token || !itemId) {
-      return NextResponse.json(
-        { error: "Token and itemId are required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: EXAM_LOAD_ERROR_HE }, { status: 400 });
     }
 
     const candidate = await verifyCandidateToken(token, itemId);
 
     if (!candidate) {
-      return NextResponse.json(
-        { error: "Invalid token or item" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: EXAM_LOAD_ERROR_HE }, { status: 401 });
     }
 
     if (
       candidate.status !== EXAM_STATUS.NOT_STARTED &&
       candidate.status !== EXAM_STATUS.IN_PROGRESS
     ) {
-      return NextResponse.json(
-        { error: "Exam cannot be started in the current status" },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: EXAM_LOAD_ERROR_HE }, { status: 403 });
     }
 
     if (candidate.status === EXAM_STATUS.NOT_STARTED) {
       await startCandidateExam(itemId);
     }
 
+    const examTypeId = candidate.examTypeId;
+
     return NextResponse.json({
-      questions: getPublicQuestions(),
-      durationMs: getExamDurationMs(),
+      questions: getPublicQuestions(examTypeId),
+      durationMs: getExamDurationMs(examTypeId),
+      examTypeId,
+      examTypeLabel: candidate.examTypeLabel,
     });
   } catch (error) {
     console.error("[api/start]", error);
-    return NextResponse.json(
-      { error: "Failed to start exam" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: EXAM_LOAD_ERROR_HE }, { status: 500 });
   }
 }

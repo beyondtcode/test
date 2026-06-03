@@ -1,6 +1,11 @@
 "use client";
 
 import { useMemo, useState, type FormEvent } from "react";
+import {
+  EXAM_TYPE_IDS,
+  EXAM_TYPE_LABELS,
+  type ExamTypeId,
+} from "@/lib/exam/exam-types";
 
 type EditableQuestion = {
   id: string;
@@ -10,6 +15,7 @@ type EditableQuestion = {
 };
 
 type EditableExam = {
+  examTypeId?: ExamTypeId;
   title: string;
   durationMinutes: number;
   questions: EditableQuestion[];
@@ -20,6 +26,8 @@ type ApiErrorResponse = {
 };
 
 export function AdminTestEditor() {
+  const [selectedExamTypeId, setSelectedExamTypeId] =
+    useState<ExamTypeId>("exam-a");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -35,13 +43,15 @@ export function AdminTestEditor() {
     return !loading && !saving && loaded && exam.questions.length > 0;
   }, [exam.questions.length, loaded, loading, saving]);
 
-  async function loadExam() {
+  async function loadExam(examTypeId: ExamTypeId) {
     setLoading(true);
     setError(null);
     setSaveMessage(null);
 
     try {
-      const res = await fetch("/api/admin/test");
+      const res = await fetch(
+        `/api/admin/test?examTypeId=${encodeURIComponent(examTypeId)}`
+      );
       const data = (await res.json()) as EditableExam | ApiErrorResponse;
 
       if (!res.ok) {
@@ -56,6 +66,14 @@ export function AdminTestEditor() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function switchExamType(examTypeId: ExamTypeId) {
+    setSelectedExamTypeId(examTypeId);
+    setLoaded(false);
+    setSaveMessage(null);
+    setError(null);
+    setExam({ title: "", durationMinutes: 50, questions: [] });
   }
 
   function addQuestion() {
@@ -163,19 +181,22 @@ export function AdminTestEditor() {
     setSaveMessage(null);
 
     try {
-      const res = await fetch("/api/admin/test", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: exam.title,
-          durationMinutes: exam.durationMinutes,
-          questions: exam.questions.map((question) => ({
-            prompt: question.prompt,
-            options: question.options,
-            correctIndex: question.correctIndex,
-          })),
-        }),
-      });
+      const res = await fetch(
+        `/api/admin/test?examTypeId=${encodeURIComponent(selectedExamTypeId)}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: exam.title,
+            durationMinutes: exam.durationMinutes,
+            questions: exam.questions.map((question) => ({
+              prompt: question.prompt,
+              options: question.options,
+              correctIndex: question.correctIndex,
+            })),
+          }),
+        }
+      );
 
       const data = (await res.json()) as
         | { ok: true; exam: EditableExam }
@@ -186,7 +207,7 @@ export function AdminTestEditor() {
       }
 
       setExam((data as { ok: true; exam: EditableExam }).exam);
-      setSaveMessage("המבחן נשמר בהצלחה.");
+      setSaveMessage(`המבחן ${EXAM_TYPE_LABELS[selectedExamTypeId]} נשמר בהצלחה.`);
     } catch {
       setError("אירעה שגיאה בשמירת המבחן.");
     } finally {
@@ -198,14 +219,14 @@ export function AdminTestEditor() {
     <div className="mx-auto mt-6 w-full max-w-3xl rounded-2xl border border-slate-200/80 bg-white/70 p-6 shadow-sm backdrop-blur">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold text-slate-900">עריכת מבחן</h2>
+          <h2 className="text-2xl font-semibold text-slate-900">עריכת מבחנים</h2>
           <p className="mt-2 text-sm leading-relaxed text-slate-600">
-            אפשר לערוך את פרטי המבחן, שאלות, אפשרויות ותשובות נכונות.
+            בחרי סוג מבחן וערכי שאלות, אפשרויות ותשובות נכונות.
           </p>
         </div>
         <button
           type="button"
-          onClick={() => void loadExam()}
+          onClick={() => void loadExam(selectedExamTypeId)}
           disabled={loading || saving}
           className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
         >
@@ -213,9 +234,34 @@ export function AdminTestEditor() {
         </button>
       </div>
 
+      <div
+        className="mt-4 flex flex-wrap gap-2"
+        role="tablist"
+        aria-label="סוגי מבחן"
+      >
+        {EXAM_TYPE_IDS.map((examTypeId) => (
+          <button
+            key={examTypeId}
+            type="button"
+            role="tab"
+            aria-selected={selectedExamTypeId === examTypeId}
+            onClick={() => switchExamType(examTypeId)}
+            disabled={loading || saving}
+            className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
+              selectedExamTypeId === examTypeId
+                ? "bg-indigo-600 text-white shadow-md shadow-indigo-200/60"
+                : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+            } disabled:cursor-not-allowed disabled:opacity-60`}
+          >
+            {EXAM_TYPE_LABELS[examTypeId]}
+          </button>
+        ))}
+      </div>
+
       {!loaded ? (
         <p className="mt-5 text-sm text-slate-600">
-          לחצי על &quot;טעינת מבחן&quot; כדי להתחיל לערוך.
+          לחצי על &quot;טעינת מבחן&quot; כדי להתחיל לערוך את{" "}
+          {EXAM_TYPE_LABELS[selectedExamTypeId]}.
         </p>
       ) : (
         <form className="mt-6 space-y-6" onSubmit={onSave}>

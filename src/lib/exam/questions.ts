@@ -1,3 +1,9 @@
+import {
+  EXAM_TYPE_LABELS,
+  type ExamTypeId,
+  isExamTypeId,
+} from "./exam-types";
+
 export const EXAM_DURATION_MS = 50 * 60 * 1000;
 
 export type ExamQuestion = {
@@ -156,13 +162,36 @@ const EXAM_QUESTIONS: ExamQuestion[] = [
   },
 ];
 
-const DEFAULT_EXAM_TITLE = "מבחן כמותי";
-let examTitle = DEFAULT_EXAM_TITLE;
-let examDurationMs = EXAM_DURATION_MS;
-let examQuestions: ExamQuestion[] = EXAM_QUESTIONS.map((question) => ({
-  ...question,
-  options: [...question.options],
-}));
+type ExamDefinition = {
+  title: string;
+  durationMs: number;
+  questions: ExamQuestion[];
+};
+
+function cloneExamQuestions(questions: ExamQuestion[]): ExamQuestion[] {
+  return questions.map((question) => ({
+    ...question,
+    options: [...question.options],
+  }));
+}
+
+function createDefaultExam(title: string): ExamDefinition {
+  return {
+    title,
+    durationMs: EXAM_DURATION_MS,
+    questions: normalizeQuestions(cloneExamQuestions(EXAM_QUESTIONS)),
+  };
+}
+
+const examBanks: Record<ExamTypeId, ExamDefinition> = {
+  "exam-a": createDefaultExam(`מבחן כמותי — ${EXAM_TYPE_LABELS["exam-a"]}`),
+  "exam-b": createDefaultExam(`מבחן כמותי — ${EXAM_TYPE_LABELS["exam-b"]}`),
+  "exam-c": createDefaultExam(`מבחן כמותי — ${EXAM_TYPE_LABELS["exam-c"]}`),
+};
+
+function getBank(examTypeId: ExamTypeId): ExamDefinition {
+  return examBanks[examTypeId];
+}
 
 function clonePublicQuestion(question: ExamQuestion): PublicExamQuestion {
   return {
@@ -192,23 +221,25 @@ function normalizeQuestions(questions: ExamQuestion[]): ExamQuestion[] {
   }));
 }
 
-export function getPublicQuestions(): PublicExamQuestion[] {
-  return examQuestions.map(clonePublicQuestion);
+export function getPublicQuestions(examTypeId: ExamTypeId): PublicExamQuestion[] {
+  return getBank(examTypeId).questions.map(clonePublicQuestion);
 }
 
-export function getExamDurationMs(): number {
-  return examDurationMs;
+export function getExamDurationMs(examTypeId: ExamTypeId): number {
+  return getBank(examTypeId).durationMs;
 }
 
-export function getExamQuestionCount(): number {
-  return examQuestions.length;
+export function getExamQuestionCount(examTypeId: ExamTypeId): number {
+  return getBank(examTypeId).questions.length;
 }
 
-export function getAdminEditableExam() {
+export function getAdminEditableExam(examTypeId: ExamTypeId) {
+  const bank = getBank(examTypeId);
   return {
-    title: examTitle,
-    durationMinutes: Math.round(examDurationMs / 60000),
-    questions: examQuestions.map(clonePrivateQuestion),
+    examTypeId,
+    title: bank.title,
+    durationMinutes: Math.round(bank.durationMs / 60000),
+    questions: bank.questions.map(clonePrivateQuestion),
   };
 }
 
@@ -224,7 +255,10 @@ export type UpdateExamInput = {
   questions: UpdateExamInputQuestion[];
 };
 
-export function updateExamDefinition(input: UpdateExamInput) {
+export function updateExamDefinition(
+  examTypeId: ExamTypeId,
+  input: UpdateExamInput
+) {
   const nextTitle = input.title.trim();
   if (!nextTitle) {
     throw new Error("יש להזין שם למבחן.");
@@ -278,29 +312,37 @@ export function updateExamDefinition(input: UpdateExamInput) {
     };
   });
 
-  examTitle = nextTitle;
-  examDurationMs = input.durationMinutes * 60 * 1000;
-  examQuestions = normalizeQuestions(parsedQuestions);
+  examBanks[examTypeId] = {
+    title: nextTitle,
+    durationMs: input.durationMinutes * 60 * 1000,
+    questions: normalizeQuestions(parsedQuestions),
+  };
 }
 
 /**
  * Grades answers in question order. Each correct answer contributes equally to 100 points.
  */
-export function gradeAnswers(answers: (number | null)[]): number {
-  if (answers.length !== examQuestions.length || examQuestions.length === 0) {
+export function gradeAnswers(
+  examTypeId: ExamTypeId,
+  answers: (number | null)[]
+): number {
+  const questions = getBank(examTypeId).questions;
+  if (answers.length !== questions.length || questions.length === 0) {
     return 0;
   }
 
   let correct = 0;
-  for (let i = 0; i < examQuestions.length; i++) {
+  for (let i = 0; i < questions.length; i++) {
     const selected = answers[i] ?? null;
-    if (selected === examQuestions[i].correctIndex) {
+    if (selected === questions[i].correctIndex) {
       correct++;
     }
   }
-  return Math.round((correct / examQuestions.length) * 100);
+  return Math.round((correct / questions.length) * 100);
 }
 
-export function getQuestionIds(): string[] {
-  return examQuestions.map((q) => q.id);
+export function getQuestionIds(examTypeId: ExamTypeId): string[] {
+  return getBank(examTypeId).questions.map((q) => q.id);
 }
+
+export { isExamTypeId };

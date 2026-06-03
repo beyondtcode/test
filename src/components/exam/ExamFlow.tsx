@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import type { ExamTypeId } from "@/lib/exam/exam-types";
+import { EXAM_LOAD_ERROR_HE } from "@/lib/exam/errors";
 import { EXAM_DURATION_MS } from "@/lib/exam/questions";
 import type { PublicExamQuestion } from "@/lib/exam/questions";
 import {
@@ -22,7 +24,10 @@ type AuthSuccess = {
   itemId: string;
   name: string;
   email: string;
-  jobPosition: string;
+  jobPosition?: string;
+  examTypeId: ExamTypeId;
+  examTypeLabel: string;
+  candidateSource?: string;
 };
 
 const TAB_LEAVE_LIMIT = 1;
@@ -36,13 +41,10 @@ const ACCESS_DENIED_MESSAGE =
 const THANK_YOU_MESSAGE =
   "תודה רבה! המבחן הוגש בהצלחה. אנחנו מעריכים את זמנך והשקעתך. נציג מטעמנו יבחן את התוצאות ונחזור אלייך בהקדם עם עדכון לגבי המשך תהליך המיון.";
 
-function isAccessDeniedStatus(status: number): boolean {
-  return status === 401 || status === 403 || status === 500;
-}
-
-function welcomeHeading(name: string, jobPosition: string): string {
-  if (jobPosition.trim()) {
-    return `שלום ${name}! ברוכה הבאה למבחן הטכני למשרת ${jobPosition.trim()}.`;
+function welcomeHeading(name: string, examTypeLabel: string): string {
+  const label = examTypeLabel.trim();
+  if (label) {
+    return `שלום ${name}! ברוכה הבאה ל${label}.`;
   }
   return `שלום ${name}! ברוכה הבאה למבחן הטכני שלך.`;
 }
@@ -314,6 +316,8 @@ export function ExamFlow() {
             token: session.token,
             answers: answersRecordToArray(session.questions, session.answers),
             tabLeavesCount,
+            candidateSource: session.candidateSource,
+            examTypeId: session.examTypeId,
           }),
         });
 
@@ -427,6 +431,9 @@ export function ExamFlow() {
           name: stored.name,
           email: "",
           jobPosition: stored.jobPosition ?? "",
+          examTypeId: stored.examTypeId ?? "exam-a",
+          examTypeLabel: stored.examTypeLabel ?? "",
+          candidateSource: stored.candidateSource,
         });
         setQuestions(stored.questions ?? []);
         setAnswers(stored.answers);
@@ -446,6 +453,9 @@ export function ExamFlow() {
           name: stored.name,
           email: "",
           jobPosition: stored.jobPosition ?? "",
+          examTypeId: stored.examTypeId ?? "exam-a",
+          examTypeLabel: stored.examTypeLabel ?? "",
+          candidateSource: stored.candidateSource,
         });
         setExamDurationMs(stored.durationMs ?? EXAM_DURATION_MS);
         setView("welcome");
@@ -454,7 +464,8 @@ export function ExamFlow() {
 
       const authToken = tokenFromUrl || stored?.token;
       if (!authToken) {
-        setAccessDenied(true);
+        setAccessDenied(false);
+        setErrorMessage(EXAM_LOAD_ERROR_HE);
         setView("error");
         return;
       }
@@ -470,13 +481,9 @@ export function ExamFlow() {
           error?: string;
         };
 
-        if (!response.ok) {
-          if (isAccessDeniedStatus(response.status)) {
-            setAccessDenied(true);
-          } else {
-            setAccessDenied(false);
-            setErrorMessage(data.error ?? "האימות נכשל");
-          }
+        if (!response.ok || !data.examTypeId) {
+          setAccessDenied(false);
+          setErrorMessage(data.error ?? EXAM_LOAD_ERROR_HE);
           setView("error");
           return;
         }
@@ -486,6 +493,9 @@ export function ExamFlow() {
           itemId: data.itemId,
           name: data.name,
           jobPosition: data.jobPosition ?? "",
+          examTypeId: data.examTypeId,
+          examTypeLabel: data.examTypeLabel,
+          candidateSource: data.candidateSource,
           endsAt: 0,
           answers: {},
           tabLeaves: 0,
@@ -502,7 +512,7 @@ export function ExamFlow() {
         setView("welcome");
       } catch {
         setAccessDenied(false);
-        setErrorMessage("לא ניתן להתחבר כרגע. נסי שוב מאוחר יותר.");
+        setErrorMessage(EXAM_LOAD_ERROR_HE);
         setView("error");
       }
     }
@@ -532,12 +542,10 @@ export function ExamFlow() {
       };
 
       if (!response.ok) {
-        if (isAccessDeniedStatus(response.status)) {
-          setAccessDenied(true);
-          setView("error");
-          return;
-        }
-        throw new Error(data.error ?? "לא ניתן להתחיל את המבחן");
+        setAccessDenied(false);
+        setErrorMessage(data.error ?? EXAM_LOAD_ERROR_HE);
+        setView("error");
+        return;
       }
 
       const examQuestions = data.questions ?? [];
@@ -553,6 +561,9 @@ export function ExamFlow() {
         itemId: candidate.itemId,
         name: candidate.name,
         jobPosition: candidate.jobPosition,
+        examTypeId: candidate.examTypeId,
+        examTypeLabel: candidate.examTypeLabel,
+        candidateSource: candidate.candidateSource,
         endsAt: newEndsAt,
         answers: initialAnswers,
         tabLeaves: 0,
@@ -570,10 +581,10 @@ export function ExamFlow() {
       setRemainingMs(durationMs);
       setExamDurationMs(durationMs);
       setView("exam");
-    } catch (err) {
-      setErrorMessage(
-        err instanceof Error ? err.message : "לא ניתן להתחיל את המבחן"
-      );
+    } catch {
+      setAccessDenied(false);
+      setErrorMessage(EXAM_LOAD_ERROR_HE);
+      setView("error");
     } finally {
       setStarting(false);
     }
@@ -624,7 +635,7 @@ export function ExamFlow() {
         <div className="px-4 pb-12">
           <ExamCard className="mt-4">
             <h1 className="text-2xl font-bold leading-snug text-slate-900">
-              {welcomeHeading(candidate.name, candidate.jobPosition)}
+              {welcomeHeading(candidate.name, candidate.examTypeLabel)}
             </h1>
             <div className="mt-6 rounded-xl border border-indigo-100 bg-indigo-50/50 p-5">
               <h2 className="text-lg font-semibold text-indigo-900">

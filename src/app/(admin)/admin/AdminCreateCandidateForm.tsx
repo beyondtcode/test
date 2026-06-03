@@ -1,6 +1,12 @@
 "use client";
 
 import { useMemo, useState, type FormEvent } from "react";
+import {
+  CANDIDATE_SOURCE_OPTIONS,
+  EXAM_TYPE_IDS,
+  EXAM_TYPE_LABELS,
+  type ExamTypeId,
+} from "@/lib/exam/exam-types";
 
 type CreateCandidateResponse =
   | { link: string; token: string; error?: undefined }
@@ -14,10 +20,21 @@ function getClientAppBaseUrl(): string {
   return configuredBaseUrl.replace(/\/+$/, "");
 }
 
+function defaultScheduledLocalValue(): string {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 16);
+}
+
 export function AdminCreateCandidateForm() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [jobPosition, setJobPosition] = useState("");
+  const [examTypeId, setExamTypeId] = useState<ExamTypeId>("exam-a");
+  const [candidateSource, setCandidateSource] = useState<string>(
+    CANDIDATE_SOURCE_OPTIONS[0]
+  );
+  const [customSource, setCustomSource] = useState("");
+  const [scheduledAt, setScheduledAt] = useState(defaultScheduledLocalValue);
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,9 +46,18 @@ export function AdminCreateCandidateForm() {
     ? `${baseUrl}/test?token=${encodeURIComponent(createdToken)}`
     : null;
 
+  const resolvedSource =
+    candidateSource === "אחר" ? customSource.trim() : candidateSource;
+
   const canSubmit = useMemo(() => {
-    return name.trim() && email.trim() && jobPosition.trim() && !submitting;
-  }, [email, jobPosition, name, submitting]);
+    return (
+      name.trim() &&
+      email.trim() &&
+      resolvedSource &&
+      scheduledAt &&
+      !submitting
+    );
+  }, [email, name, resolvedSource, scheduledAt, submitting]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -46,7 +72,9 @@ export function AdminCreateCandidateForm() {
         body: JSON.stringify({
           name,
           email,
-          jobPosition,
+          examTypeId,
+          candidateSource: resolvedSource,
+          scheduledAt: new Date(scheduledAt).toISOString(),
         }),
       });
 
@@ -60,7 +88,10 @@ export function AdminCreateCandidateForm() {
         setCreatedToken(data.token);
         setName("");
         setEmail("");
-        setJobPosition("");
+        setExamTypeId("exam-a");
+        setCandidateSource(CANDIDATE_SOURCE_OPTIONS[0]);
+        setCustomSource("");
+        setScheduledAt(defaultScheduledLocalValue());
       } else {
         setError("לא התקבל קישור לאחר יצירת מועמדת.");
       }
@@ -78,7 +109,6 @@ export function AdminCreateCandidateForm() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Fallback for older browsers.
       const ta = document.createElement("textarea");
       ta.value = createdLink;
       document.body.appendChild(ta);
@@ -103,12 +133,13 @@ export function AdminCreateCandidateForm() {
       <form className="mt-6 space-y-4" onSubmit={onSubmit}>
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block">
-            <span className="text-sm font-medium text-slate-800">שם</span>
+            <span className="text-sm font-medium text-slate-800">שם מועמדת</span>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               disabled={submitting}
+              required
               className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-slate-900 shadow-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:cursor-not-allowed disabled:bg-slate-50"
               placeholder="לדוגמה: רוני כהן"
               autoComplete="off"
@@ -116,12 +147,15 @@ export function AdminCreateCandidateForm() {
           </label>
 
           <label className="block">
-            <span className="text-sm font-medium text-slate-800">אימייל</span>
+            <span className="text-sm font-medium text-slate-800">
+              אימייל <span className="text-red-600">*</span>
+            </span>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={submitting}
+              required
               className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-slate-900 shadow-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:cursor-not-allowed disabled:bg-slate-50"
               placeholder="לדוגמה: ronit@example.com"
               autoComplete="off"
@@ -129,18 +163,65 @@ export function AdminCreateCandidateForm() {
           </label>
         </div>
 
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="block">
+            <span className="text-sm font-medium text-slate-800">סוג מבחן</span>
+            <select
+              value={examTypeId}
+              onChange={(e) => setExamTypeId(e.target.value as ExamTypeId)}
+              disabled={submitting}
+              className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-slate-900 shadow-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+            >
+              {EXAM_TYPE_IDS.map((id) => (
+                <option key={id} value={id}>
+                  {EXAM_TYPE_LABELS[id]}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="block">
+            <span className="text-sm font-medium text-slate-800">מקור מועמדת</span>
+            <select
+              value={candidateSource}
+              onChange={(e) => setCandidateSource(e.target.value)}
+              disabled={submitting}
+              className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-slate-900 shadow-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+            >
+              {CANDIDATE_SOURCE_OPTIONS.map((source) => (
+                <option key={source} value={source}>
+                  {source}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        {candidateSource === "אחר" && (
+          <label className="block">
+            <span className="text-sm font-medium text-slate-800">פירוט מקור</span>
+            <input
+              type="text"
+              value={customSource}
+              onChange={(e) => setCustomSource(e.target.value)}
+              disabled={submitting}
+              className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-slate-900 shadow-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+              placeholder="לדוגמה: כנס מקצועי"
+            />
+          </label>
+        )}
+
         <label className="block">
           <span className="text-sm font-medium text-slate-800">
-            משרת/תפקיד
+            תאריך ושעה מתוכננים
           </span>
           <input
-            type="text"
-            value={jobPosition}
-            onChange={(e) => setJobPosition(e.target.value)}
+            type="datetime-local"
+            value={scheduledAt}
+            onChange={(e) => setScheduledAt(e.target.value)}
             disabled={submitting}
+            required
             className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-slate-900 shadow-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:cursor-not-allowed disabled:bg-slate-50"
-            placeholder="לדוגמה: מפתח/ת Frontend"
-            autoComplete="off"
           />
         </label>
 
@@ -191,4 +272,3 @@ export function AdminCreateCandidateForm() {
     </div>
   );
 }
-

@@ -1,6 +1,7 @@
 export const MONDAY_COLUMNS = {
   name: "name",
   email: "email_mm3xm226",
+  /** Legacy dropdown — optional on board */
   jobPosition: "dropdown_mm3xjjdw",
   magicLinkToken: "text_mm3x9923",
   examStatus: "color_mm3xcqrz",
@@ -9,6 +10,12 @@ export const MONDAY_COLUMNS = {
   tabLeaves: "numeric_mm3x9dsz",
   /** Board column "אישור מועמד" (labels: אושר, נדחה, ממתין לאישור) */
   statusConfirm: "color_mm3y4vv1",
+  /** Exam type (status/color): מבחן א / ב / ג */
+  examType: "color_mm3zj3j9",
+  /** Candidate source (text) */
+  candidateSource: "text_mm3zwgfx",
+  /** Scheduled interview/exam datetime */
+  scheduledAt: "date_mm3y4hj6",
 } as const;
 
 export const CONFIRM_STATUS = {

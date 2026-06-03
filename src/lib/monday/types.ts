@@ -1,3 +1,4 @@
+import type { ExamTypeId } from "@/lib/exam/exam-types";
 import type { ExamStatus } from "./columns";
 
 export type CandidateRecord = {
@@ -5,6 +6,9 @@ export type CandidateRecord = {
   name: string;
   email: string;
   jobPosition: string;
+  examTypeId: ExamTypeId;
+  examTypeLabel: string;
+  candidateSource: string;
   status: ExamStatus;
 };
 
