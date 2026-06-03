@@ -1,6 +1,11 @@
+/** Default team contact email set on new candidates (Monday column email_mm3zrjey). */
+export const MONDAY_TEAM_EMAIL = "office@beyondtcode.com";
+
 export const MONDAY_COLUMNS = {
   name: "name",
   email: "email_mm3xm226",
+  /** Team / office email (editable on the Monday board) */
+  teamEmail: "email_mm3zrjey",
   /** Legacy dropdown — optional on board */
   jobPosition: "dropdown_mm3xjjdw",
   magicLinkToken: "text_mm3x9923",

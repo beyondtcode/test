@@ -7,7 +7,12 @@ import {
   isExamTypeId,
   type ExamTypeId,
 } from "@/lib/exam/exam-types";
-import { mondayFetch, EXAM_STATUS, MONDAY_COLUMNS } from "@/lib/monday";
+import {
+  mondayFetch,
+  EXAM_STATUS,
+  MONDAY_COLUMNS,
+  MONDAY_TEAM_EMAIL,
+} from "@/lib/monday";
 import { mondayConfig } from "@/lib/env";
 import {
   ADMIN_SESSION_COOKIE_NAME,
@@ -136,6 +141,10 @@ export async function POST(request: Request) {
       [MONDAY_COLUMNS.email]: {
         email,
         text: email,
+      },
+      [MONDAY_COLUMNS.teamEmail]: {
+        email: MONDAY_TEAM_EMAIL,
+        text: MONDAY_TEAM_EMAIL,
       },
       [MONDAY_COLUMNS.examType]: {
         label: EXAM_TYPE_LABELS[examTypeId],

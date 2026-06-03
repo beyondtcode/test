@@ -6,7 +6,12 @@ export {
   verifyCandidateToken,
   updateCandidateConfirmStatus,
 } from "./client";
-export { MONDAY_COLUMNS, EXAM_STATUS, CONFIRM_STATUS } from "./columns";
+export {
+  MONDAY_COLUMNS,
+  MONDAY_TEAM_EMAIL,
+  EXAM_STATUS,
+  CONFIRM_STATUS,
+} from "./columns";
 export {
   EXAM_TYPE_IDS,
   EXAM_TYPE_LABELS,
