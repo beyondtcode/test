@@ -11,6 +11,7 @@ import {
   mondayFetch,
   EXAM_STATUS,
   MONDAY_COLUMNS,
+  MONDAY_PLACEHOLDER_SCHEDULED_DATE,
   MONDAY_TEAM_EMAIL,
   updateCandidateScheduledAt,
 } from "@/lib/monday";
@@ -40,13 +41,6 @@ function getAppBaseUrl(): string {
   const rawBaseUrl =
     process.env.NEXT_PUBLIC_APP_URL?.trim() || LOCAL_FALLBACK_APP_URL;
   return rawBaseUrl.replace(/\/+$/, "");
-}
-
-function formatMondayDateTime(date: Date): { date: string; time: string } {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  const dateStr = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-  const timeStr = `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
-  return { date: dateStr, time: timeStr };
 }
 
 function parseScheduledAt(value: unknown): Date | null {
@@ -136,8 +130,6 @@ export async function POST(request: Request) {
     const token =
       crypto.randomUUID() + "-" + crypto.randomBytes(16).toString("hex");
 
-    const { date, time } = formatMondayDateTime(scheduledAt);
-
     const columnValues = JSON.stringify({
       [MONDAY_COLUMNS.email]: {
         email,
@@ -151,7 +143,7 @@ export async function POST(request: Request) {
         label: EXAM_TYPE_LABELS[examTypeId],
       },
       [MONDAY_COLUMNS.candidateSource]: candidateSource,
-      [MONDAY_COLUMNS.scheduledAt]: { date, time },
+      [MONDAY_COLUMNS.scheduledAt]: MONDAY_PLACEHOLDER_SCHEDULED_DATE,
       [MONDAY_COLUMNS.magicLinkToken]: token,
       [MONDAY_COLUMNS.examStatus]: { label: EXAM_STATUS.NOT_STARTED },
     });
@@ -180,7 +172,7 @@ export async function POST(request: Request) {
       },
     });
 
-    // Monday send-test-details automation can clear the date column; restore admin input.
+    // Apply the real admin-entered date after create / send-details automation.
     await updateCandidateScheduledAt(createdItem.id, scheduledAt);
 
     const baseUrl = getAppBaseUrl();

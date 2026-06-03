@@ -231,7 +231,7 @@ export async function verifyCandidateToken(
   return candidate;
 }
 
-/** Re-applies scheduled exam date after Monday automations (e.g. send test details). */
+/** Sets the real scheduled exam date after create (placeholder was sent on create_item). */
 export async function updateCandidateScheduledAt(
   itemId: string,
   scheduledAt: Date

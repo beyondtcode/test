@@ -1,6 +1,15 @@
 /** Default team contact email set on new candidates (Monday column email_mm3zrjey). */
 export const MONDAY_TEAM_EMAIL = "office@beyondtcode.com";
 
+/**
+ * Placeholder scheduled date on create_item so Monday “send details” automations
+ * do not use the real admin-entered date. Replaced immediately after create.
+ */
+export const MONDAY_PLACEHOLDER_SCHEDULED_DATE = {
+  date: "1900-01-01",
+  time: "00:00:00",
+} as const;
+
 export const MONDAY_COLUMNS = {
   name: "name",
   email: "email_mm3xm226",
