@@ -66,6 +66,13 @@ public/
 | ------------------ | ---------- | ------------------------------------------ |
 | `MONDAY_API_KEY`   | Server only | Never expose with `NEXT_PUBLIC_` prefix |
 | `MONDAY_BOARD_ID`  | Server only | Board ID from Monday.com URL               |
+| `NEXT_PUBLIC_APP_URL` | Client + server | Magic links and exam invite emails |
+| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` | Server only | Nodemailer SMTP (default user: `dev@beyondtcode.com`) |
+| `CRON_SECRET`      | Server only | Vercel Cron `Authorization: Bearer` for `/api/cron/check-scheduled-exams` |
+
+### Vercel Cron (exam invites)
+
+[`vercel.json`](vercel.json) runs `/api/cron/check-scheduled-exams` every minute. Set all env vars in the Vercel project. After a successful invite email, Monday `examStatus` becomes **נשלח קישור למבחן** (label created automatically if missing).
 
 Access via `src/lib/env.ts` in Server Components, Route Handlers, or Server Actions only.
 

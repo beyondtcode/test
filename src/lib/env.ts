@@ -40,3 +40,34 @@ export const mondayConfig = {
     return requireEnv("MONDAY_BOARD_ID");
   },
 } as const;
+
+const DEFAULT_SMTP_USER = "dev@beyondtcode.com";
+
+export const smtpConfig = {
+  get host() {
+    return requireEnv("SMTP_HOST");
+  },
+  get port() {
+    const raw = process.env.SMTP_PORT?.trim();
+    if (!raw) {
+      return 587;
+    }
+    const port = Number.parseInt(raw, 10);
+    if (!Number.isFinite(port) || port <= 0) {
+      throw new Error("SMTP_PORT must be a positive integer");
+    }
+    return port;
+  },
+  get user() {
+    return process.env.SMTP_USER?.trim() || DEFAULT_SMTP_USER;
+  },
+  get password() {
+    return requireEnv("SMTP_PASSWORD");
+  },
+} as const;
+
+export const cronConfig = {
+  get secret() {
+    return requireEnv("CRON_SECRET");
+  },
+} as const;

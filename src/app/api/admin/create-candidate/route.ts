@@ -15,6 +15,7 @@ import {
   MONDAY_TEAM_EMAIL,
   updateCandidateScheduledAt,
 } from "@/lib/monday";
+import { buildExamMagicLink, getRequestOrigin } from "@/lib/app-url";
 import { mondayConfig } from "@/lib/env";
 import {
   ADMIN_SESSION_COOKIE_NAME,
@@ -24,24 +25,6 @@ import {
 export const runtime = "nodejs";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const LOCAL_FALLBACK_APP_URL = "http://localhost:3000";
-
-function getRequestOrigin(request: Request): string {
-  const forwardedProto = request.headers.get("x-forwarded-proto");
-  const forwardedHost = request.headers.get("x-forwarded-host");
-
-  const url = new URL(request.url);
-  const proto = forwardedProto?.split(",")[0]?.trim() || url.protocol.replace(":", "");
-  const host = forwardedHost?.split(",")[0]?.trim() || url.host;
-
-  return `${proto}://${host}`;
-}
-
-function getAppBaseUrl(): string {
-  const rawBaseUrl =
-    process.env.NEXT_PUBLIC_APP_URL?.trim() || LOCAL_FALLBACK_APP_URL;
-  return rawBaseUrl.replace(/\/+$/, "");
-}
 
 function parseScheduledAt(value: unknown): Date | null {
   if (typeof value !== "string" || !value.trim()) {
@@ -175,8 +158,7 @@ export async function POST(request: Request) {
     // Apply the real admin-entered date after create / send-details automation.
     await updateCandidateScheduledAt(createdItem.id, scheduledAt);
 
-    const baseUrl = getAppBaseUrl();
-    const link = `${baseUrl}/test?token=${encodeURIComponent(token)}`;
+    const link = buildExamMagicLink(token);
 
     return NextResponse.json({ link, token });
   } catch (error) {

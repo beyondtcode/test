@@ -41,6 +41,7 @@ export type ConfirmStatus = (typeof CONFIRM_STATUS)[keyof typeof CONFIRM_STATUS]
 
 export const EXAM_STATUS = {
   NOT_STARTED: "טרם התחיל",
+  INVITE_SENT: "נשלח קישור למבחן",
   IN_PROGRESS: "בתהליך",
   SUBMITTED: "הוגש",
   BLOCKED: "חסום",

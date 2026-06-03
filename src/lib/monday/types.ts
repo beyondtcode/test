@@ -15,6 +15,19 @@ export type CandidateRecord = {
 export type MondayColumnValue = {
   id: string;
   text: string | null;
+  value?: string | null;
+};
+
+export type ScheduledCandidateRow = {
+  itemId: string;
+  name: string;
+  email: string;
+  examTypeLabel: string;
+  magicLinkToken: string;
+  scheduledDate: string;
+  scheduledTime: string;
+  examStatus: string;
+  statusConfirm: string;
 };
 
 export type ItemsPageByColumnValuesData = {
