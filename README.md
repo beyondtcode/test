@@ -72,7 +72,7 @@ public/
 
 ### QStash exam invites (event-driven)
 
-When an admin creates a candidate, the app schedules **one** QStash message for that Monday item at the chosen exam time (`deduplicationId`: `exam-invite-{itemId}`). At fire time, QStash POSTs to `/api/webhooks/send-exam-invite`, which loads the item, checks eligibility (approved, not started, valid email/token), and sets Monday `examStatus` (`color_mm3xcqrz`) to **שלח מבחן כעת** so SuperMail sends the invite. Set `NEXT_PUBLIC_APP_URL` to your public deployment URL so QStash can reach the webhook.
+When an admin creates a candidate, the app schedules **one** QStash message for that Monday item at the chosen exam time (`deduplicationId`: `exam-invite-{itemId}`). The same alarm is (re)scheduled when a candidate is approved via `/api/candidate/respond` or when Monday posts to `/api/webhooks/monday-status-change` (configure the board webhook on column `color_mm3y4vv1` → **אושר**). At fire time, QStash POSTs to `/api/webhooks/send-exam-invite`, which loads the item, checks eligibility (approved, not started, valid email/token), and sets Monday `examStatus` (`color_mm3xcqrz`) to **שלח מבחן כעת** so SuperMail sends the invite. Set `NEXT_PUBLIC_APP_URL` to your public deployment URL so QStash and Monday can reach the webhooks.
 
 Access via `src/lib/env.ts` in Server Components, Route Handlers, or Server Actions only.
 
