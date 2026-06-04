@@ -22,6 +22,7 @@ export {
   EXAM_PASSING_SCORE,
   PASS_RESULT,
   passResultLabelFromScore,
+  passResultLabelFromSubmission,
 } from "./columns";
 export {
   EXAM_TYPE_IDS,

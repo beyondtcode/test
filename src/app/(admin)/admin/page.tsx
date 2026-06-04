@@ -1,6 +1,7 @@
 import { Heebo } from "next/font/google";
 import { isAdminSessionValidFromCookies } from "@/lib/admin/session";
 import { AdminCreateCandidateForm } from "./AdminCreateCandidateForm";
+import { AdminExcelImportForm } from "./AdminExcelImportForm";
 import { AdminLoginForm } from "./AdminLoginForm";
 import { AdminTestEditor } from "./AdminTestEditor";
 
@@ -34,6 +35,7 @@ export default async function AdminDashboardPage() {
           {isAuthed ? (
             <>
               <AdminCreateCandidateForm />
+              <AdminExcelImportForm />
               <AdminTestEditor />
             </>
           ) : (

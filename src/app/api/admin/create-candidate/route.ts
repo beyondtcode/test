@@ -1,5 +1,5 @@
-import crypto from "crypto";
 import { NextResponse } from "next/server";
+import { generateCandidateMagicToken } from "@/lib/candidate/token";
 import { cookies } from "next/headers";
 import { parseNonEmptyString } from "@/lib/api/validation";
 import {
@@ -111,8 +111,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const token =
-      crypto.randomUUID() + "-" + crypto.randomBytes(16).toString("hex");
+    const token = generateCandidateMagicToken();
 
     const columnValues = JSON.stringify({
       [MONDAY_COLUMNS.email]: {

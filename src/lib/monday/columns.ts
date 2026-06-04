@@ -32,6 +32,10 @@ export const MONDAY_COLUMNS = {
   candidateSource: "text_mm3zwgfx",
   /** Scheduled interview/exam datetime */
   scheduledAt: "date_mm3y4hj6",
+  /** Candidate phone */
+  phone: "phone_mm40xg8n",
+  /** Seminary (text) */
+  seminary: "text_mm40g870",
 } as const;
 
 export const CONFIRM_STATUS = {
@@ -64,4 +68,14 @@ export type PassResult = (typeof PASS_RESULT)[keyof typeof PASS_RESULT];
 
 export function passResultLabelFromScore(score: number): PassResult {
   return score >= EXAM_PASSING_SCORE ? PASS_RESULT.PASSED : PASS_RESULT.FAILED;
+}
+
+export function passResultLabelFromSubmission(
+  score: number,
+  examStatus: string
+): PassResult {
+  if (examStatus === EXAM_STATUS.BLOCKED) {
+    return PASS_RESULT.FAILED;
+  }
+  return passResultLabelFromScore(score);
 }

@@ -3,7 +3,7 @@ import { mondayConfig } from "@/lib/env";
 import {
   EXAM_STATUS,
   MONDAY_COLUMNS,
-  passResultLabelFromScore,
+  passResultLabelFromSubmission,
 } from "./columns";
 import type { ConfirmStatus } from "./columns";
 import type {
@@ -198,7 +198,7 @@ export async function submitCandidateExam(
     [MONDAY_COLUMNS.tabLeaves]: tabLeaves,
     [MONDAY_COLUMNS.examStatus]: { label: status },
     [MONDAY_COLUMNS.passResult]: {
-      label: passResultLabelFromScore(score),
+      label: passResultLabelFromSubmission(score, status),
     },
   });
 
