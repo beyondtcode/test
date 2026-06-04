@@ -32,12 +32,16 @@ export async function POST(request: Request) {
 
     if (
       candidate.status !== EXAM_STATUS.NOT_STARTED &&
+      candidate.status !== EXAM_STATUS.SEND_EXAM_NOW &&
       candidate.status !== EXAM_STATUS.IN_PROGRESS
     ) {
       return NextResponse.json({ error: EXAM_LOAD_ERROR_HE }, { status: 403 });
     }
 
-    if (candidate.status === EXAM_STATUS.NOT_STARTED) {
+    if (
+      candidate.status === EXAM_STATUS.NOT_STARTED ||
+      candidate.status === EXAM_STATUS.SEND_EXAM_NOW
+    ) {
       await startCandidateExam(itemId);
     }
 

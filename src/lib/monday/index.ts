@@ -19,6 +19,9 @@ export {
   MONDAY_PLACEHOLDER_SCHEDULED_DATE,
   EXAM_STATUS,
   CONFIRM_STATUS,
+  EXAM_PASSING_SCORE,
+  PASS_RESULT,
+  passResultLabelFromScore,
 } from "./columns";
 export {
   EXAM_TYPE_IDS,
@@ -29,5 +32,5 @@ export {
 export type { ExamTypeId } from "@/lib/exam/exam-types";
 export type { ConfirmStatus } from "./columns";
 export type { CandidateRecord } from "./types";
-export type { ExamStatus } from "./columns";
+export type { ExamStatus, PassResult } from "./columns";
 export { parseColumnText } from "./types";

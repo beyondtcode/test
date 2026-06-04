@@ -1,6 +1,10 @@
 import { examTypeIdFromMondayLabel } from "@/lib/exam/exam-types";
 import { mondayConfig } from "@/lib/env";
-import { EXAM_STATUS, MONDAY_COLUMNS } from "./columns";
+import {
+  EXAM_STATUS,
+  MONDAY_COLUMNS,
+  passResultLabelFromScore,
+} from "./columns";
 import type { ConfirmStatus } from "./columns";
 import type {
   CandidateRecord,
@@ -193,6 +197,9 @@ export async function submitCandidateExam(
     [MONDAY_COLUMNS.grade]: score,
     [MONDAY_COLUMNS.tabLeaves]: tabLeaves,
     [MONDAY_COLUMNS.examStatus]: { label: status },
+    [MONDAY_COLUMNS.passResult]: {
+      label: passResultLabelFromScore(score),
+    },
   });
 
   await mondayFetch<ChangeMultipleColumnValuesData>({

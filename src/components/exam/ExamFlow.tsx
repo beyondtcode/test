@@ -649,6 +649,9 @@ export function ExamFlow() {
                 <li>לא ניתן להשהות את הטיימר לאחר תחילת המבחן.</li>
                 <li>המבחן יוגש אוטומטית עם סיום הזמן.</li>
                 <li className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 font-semibold text-red-800">
+                  אסור להשתמש במחשבון במהלך המבחן — אין להשתמש בו כלל.
+                </li>
+                <li className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 font-semibold text-red-800">
                   חשוב מאוד: אסור לצאת ממסך המבחן. יציאה אחת בלבד תחסום את
                   המבחן באופן מיידי.
                 </li>

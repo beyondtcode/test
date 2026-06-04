@@ -20,7 +20,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: EXAM_LOAD_ERROR_HE }, { status: 404 });
     }
 
-    if (candidate.status === EXAM_STATUS.NOT_STARTED) {
+    if (
+      candidate.status === EXAM_STATUS.NOT_STARTED ||
+      candidate.status === EXAM_STATUS.SEND_EXAM_NOW
+    ) {
       return NextResponse.json({
         itemId: candidate.itemId,
         name: candidate.name,

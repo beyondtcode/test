@@ -22,6 +22,8 @@ export const MONDAY_COLUMNS = {
   startTime: "date_mm3xk9m5",
   grade: "numeric_mm3x35gv",
   tabLeaves: "numeric_mm3x9dsz",
+  /** Pass / fail (status/color): עבר, לא עבר */
+  passResult: "color_mm4089xy",
   /** Board column "אישור מועמד" (labels: אושר, נדחה, ממתין לאישור) */
   statusConfirm: "color_mm3y4vv1",
   /** Exam type (status/color): מבחן א / ב / ג */
@@ -50,3 +52,16 @@ export const EXAM_STATUS = {
 } as const;
 
 export type ExamStatus = (typeof EXAM_STATUS)[keyof typeof EXAM_STATUS];
+
+export const EXAM_PASSING_SCORE = 60;
+
+export const PASS_RESULT = {
+  PASSED: "עבר",
+  FAILED: "לא עבר",
+} as const;
+
+export type PassResult = (typeof PASS_RESULT)[keyof typeof PASS_RESULT];
+
+export function passResultLabelFromScore(score: number): PassResult {
+  return score >= EXAM_PASSING_SCORE ? PASS_RESULT.PASSED : PASS_RESULT.FAILED;
+}
