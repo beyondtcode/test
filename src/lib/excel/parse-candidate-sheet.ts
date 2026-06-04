@@ -5,6 +5,7 @@ export type ParsedCandidateRow = {
   email: string;
   phone: string;
   seminary: string;
+  notes: string;
   examName: string;
   /** 1-based spreadsheet row number (header = row 1) */
   sheetRow: number;
@@ -16,13 +17,20 @@ export type ParseCandidateSheetResult = {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-type FieldKey = "name" | "email" | "phone" | "seminary" | "examName";
+type FieldKey =
+  | "name"
+  | "email"
+  | "phone"
+  | "seminary"
+  | "notes"
+  | "examName";
 
 const HEADER_ALIASES: Record<FieldKey, string[]> = {
   name: ["name", "שם ושם משפחה"],
   email: ["email", "מייל"],
   phone: ["phone", "טלפון"],
   seminary: ["seminary", "סמינר"],
+  notes: ["notes", "הערות", "comments"],
   examName: ["exam name", "examname", "שם מבחן"],
 };
 
@@ -33,6 +41,7 @@ const FIELD_LABELS_HE: Record<FieldKey, string> = {
   email: "מייל",
   phone: "טלפון",
   seminary: "סמינר",
+  notes: "הערות",
   examName: "שם מבחן",
 };
 
@@ -153,6 +162,7 @@ export function parseCandidateSheet(buffer: Buffer): ParseCandidateSheetResult {
       email: cellValue(dataRow, indexByField.email),
       phone: cellValue(dataRow, indexByField.phone),
       seminary: cellValue(dataRow, indexByField.seminary),
+      notes: cellValue(dataRow, indexByField.notes),
       examName: cellValue(dataRow, indexByField.examName),
       sheetRow,
     });

@@ -1,11 +1,48 @@
 import { mondayConfig } from "@/lib/env";
+import { updateCandidateScheduledAt } from "./client";
 import {
   EXAM_STATUS,
   MONDAY_COLUMNS,
   MONDAY_TEAM_EMAIL,
 } from "./columns";
 import { mondayFetch } from "./client";
+import { scheduleExamInviteAlarm } from "@/lib/qstash/schedule-exam-invite";
 import type { ParsedCandidateRow } from "@/lib/excel/parse-candidate-sheet";
+
+export type MondayGroupSummary = {
+  id: string;
+  title: string;
+  itemCount: number;
+};
+
+export type MondayGroupItem = {
+  id: string;
+  name: string;
+};
+
+type BoardGroupsQueryData = {
+  boards: Array<{
+    groups: Array<{
+      id: string;
+      title: string;
+      items_page: {
+        cursor: string | null;
+        items: Array<{ id: string }>;
+      };
+    }>;
+  }>;
+};
+
+type GroupItemsQueryData = {
+  boards: Array<{
+    groups: Array<{
+      items_page: {
+        cursor: string | null;
+        items: Array<{ id: string; name: string }>;
+      };
+    }>;
+  }>;
+};
 
 export function groupNameFromFilename(filename: string): string {
   const base = filename.replace(/\.[^.]+$/i, "").trim();
@@ -37,7 +74,10 @@ export async function createMondayGroup(groupName: string): Promise<string> {
 }
 
 export function buildImportColumnValues(
-  row: Pick<ParsedCandidateRow, "email" | "phone" | "seminary" | "examName">,
+  row: Pick<
+    ParsedCandidateRow,
+    "email" | "phone" | "seminary" | "notes" | "examName"
+  >,
   token: string
 ): Record<string, unknown> {
   const values: Record<string, unknown> = {
@@ -66,7 +106,12 @@ export function buildImportColumnValues(
 
   const seminary = row.seminary.trim();
   if (seminary) {
-    values[MONDAY_COLUMNS.seminary] = seminary;
+    values[MONDAY_COLUMNS.candidateSource] = seminary;
+  }
+
+  const notes = row.notes.trim();
+  if (notes) {
+    values[MONDAY_COLUMNS.notes] = notes;
   }
 
   return values;
@@ -111,4 +156,125 @@ export async function createCandidateItemInGroup({
   });
 
   return createdItem.id;
+}
+
+const GROUP_ITEMS_PAGE_LIMIT = 500;
+
+export async function listBoardGroups(): Promise<MondayGroupSummary[]> {
+  const data = await mondayFetch<BoardGroupsQueryData>({
+    query: `
+      query ListBoardGroups($boardId: [ID!]) {
+        boards(ids: $boardId) {
+          groups {
+            id
+            title
+            items_page(limit: ${GROUP_ITEMS_PAGE_LIMIT}) {
+              cursor
+              items {
+                id
+              }
+            }
+          }
+        }
+      }
+    `,
+    variables: {
+      boardId: [mondayConfig.boardId],
+    },
+  });
+
+  const board = data.boards[0];
+  if (!board) {
+    return [];
+  }
+
+  return board.groups
+    .map((group) => ({
+      id: group.id,
+      title: group.title,
+      itemCount: group.items_page.items.length,
+    }))
+    .filter((group) => group.itemCount > 0);
+}
+
+export async function listGroupItems(groupId: string): Promise<MondayGroupItem[]> {
+  const items: MondayGroupItem[] = [];
+  let cursor: string | null = null;
+  let hasMore = true;
+
+  while (hasMore) {
+    const data: GroupItemsQueryData = await mondayFetch<GroupItemsQueryData>({
+      query: `
+        query ListGroupItems($boardId: [ID!], $groupId: String!, $cursor: String) {
+          boards(ids: $boardId) {
+            groups(ids: [$groupId]) {
+              items_page(limit: ${GROUP_ITEMS_PAGE_LIMIT}, cursor: $cursor) {
+                cursor
+                items {
+                  id
+                  name
+                }
+              }
+            }
+          }
+        }
+      `,
+      variables: {
+        boardId: [mondayConfig.boardId],
+        groupId,
+        cursor,
+      },
+    });
+
+    const group = data.boards[0]?.groups[0];
+    if (!group) {
+      break;
+    }
+
+    items.push(...group.items_page.items);
+    cursor = group.items_page.cursor;
+    hasMore = Boolean(cursor);
+  }
+
+  return items;
+}
+
+export type ScheduleGroupResult = {
+  updated: number;
+  failed: Array<{ itemId: string; name?: string; message: string }>;
+};
+
+export async function scheduleExamDateForGroup(
+  groupId: string,
+  scheduledAt: Date
+): Promise<ScheduleGroupResult> {
+  const items = await listGroupItems(groupId);
+  const failed: ScheduleGroupResult["failed"] = [];
+  let updated = 0;
+
+  for (const item of items) {
+    try {
+      await updateCandidateScheduledAt(item.id, scheduledAt);
+      try {
+        await scheduleExamInviteAlarm(item.id, scheduledAt);
+      } catch (scheduleError) {
+        console.error(
+          `[scheduleExamDateForGroup] QStash schedule failed for item ${item.id}:`,
+          scheduleError
+        );
+      }
+      updated += 1;
+    } catch (error) {
+      failed.push({
+        itemId: item.id,
+        name: item.name,
+        message:
+          error instanceof Error
+            ? error.message
+            : "עדכון תאריך המבחן נכשל.",
+      });
+    }
+  }
+
+  return { updated, failed };
 }

@@ -114,28 +114,6 @@ export async function POST(request: Request) {
     }
 
     const groupName = groupNameFromFilename(file.name);
-    // #region agent log
-    fetch("http://127.0.0.1:7488/ingest/5e9b5d4c-503c-4b19-9abd-9ba9afdbe29a", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Debug-Session-Id": "4068cd",
-      },
-      body: JSON.stringify({
-        sessionId: "4068cd",
-        runId: "pre-fix",
-        hypothesisId: "D",
-        location: "src/app/api/admin/import-excel/route.ts:beforeCreateMondayGroup",
-        message: "import-excel reached Monday group create",
-        data: {
-          groupName,
-          hasMondayBoardId: Boolean(process.env.MONDAY_BOARD_ID?.trim()),
-          hasMondayApiKey: Boolean(process.env.MONDAY_API_KEY?.trim()),
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
     const groupId = await createMondayGroup(groupName);
 
     const errors: ImportRowError[] = [];

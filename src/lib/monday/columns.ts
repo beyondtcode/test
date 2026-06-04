@@ -34,8 +34,8 @@ export const MONDAY_COLUMNS = {
   scheduledAt: "date_mm3y4hj6",
   /** Candidate phone */
   phone: "phone_mm40xg8n",
-  /** Seminary (text) */
-  seminary: "text_mm40g870",
+  /** Notes / הערות (text) */
+  notes: "text_mm40g870",
 } as const;
 
 export const CONFIRM_STATUS = {

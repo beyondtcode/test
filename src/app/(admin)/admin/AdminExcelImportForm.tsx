@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState, type DragEvent } from "react";
+import { rememberImportedGroupForSchedule } from "./AdminBulkScheduleForm";
 
 type ImportRowError = {
   row: number;
@@ -102,7 +103,11 @@ export function AdminExcelImportForm() {
         return;
       }
 
-      setResult(data as ImportSuccessResponse);
+      const success = data as ImportSuccessResponse;
+      setResult(success);
+      if (success.groupId) {
+        rememberImportedGroupForSchedule(success.groupId);
+      }
       setSelectedFile(null);
       resetInput();
     } catch {
@@ -125,9 +130,9 @@ export function AdminExcelImportForm() {
         ייבוא מועמדות מקובץ Excel
       </h2>
       <p className="mt-2 text-sm leading-relaxed text-slate-600">
-        העלי קובץ עם עמודות: שם ושם משפחה, מייל, טלפון, סמינר ושם מבחן.
-        המועמדות ייווצרו ב-Monday בקבוצה חדשה לפי שם הקובץ, ללא תאריך מבחן
-        וללא שליחת מיילים.
+        העלי קובץ עם עמודות: שם ושם משפחה, מייל, טלפון, סמינר (מקור מועמד),
+        שם מבחן, והערות (אופציונלי). המועמדות ייווצרו ב-Monday בקבוצה חדשה לפי
+        שם הקובץ, ללא תאריך מבחן וללא שליחת מיילים.
       </p>
 
       <div

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { generateCandidateMagicToken } from "@/lib/candidate/token";
 import { cookies } from "next/headers";
+import { parseScheduledAt } from "@/lib/api/scheduled-at";
 import { parseNonEmptyString } from "@/lib/api/validation";
 import {
   EXAM_TYPE_LABELS,
@@ -26,17 +27,6 @@ import {
 export const runtime = "nodejs";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-function parseScheduledAt(value: unknown): Date | null {
-  if (typeof value !== "string" || !value.trim()) {
-    return null;
-  }
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return null;
-  }
-  return parsed;
-}
 
 export async function POST(request: Request) {
   try {

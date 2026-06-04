@@ -21,28 +21,6 @@ function normalizeMondayApiKey(raw: string): string {
 function requireEnv(name: string): string {
   const value = process.env[name];
   if (!value?.trim()) {
-    // #region agent log
-    fetch("http://127.0.0.1:7488/ingest/5e9b5d4c-503c-4b19-9abd-9ba9afdbe29a", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Debug-Session-Id": "4068cd",
-      },
-      body: JSON.stringify({
-        sessionId: "4068cd",
-        runId: "pre-fix",
-        hypothesisId: "A",
-        location: "src/lib/env.ts:requireEnv",
-        message: "requireEnv failed",
-        data: {
-          name,
-          defined: value !== undefined,
-          trimmedLength: value?.trim().length ?? 0,
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
     throw new Error(`Missing required environment variable: ${name}`);
   }
   const trimmed = value.trim();
