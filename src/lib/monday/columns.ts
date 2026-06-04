@@ -41,6 +41,8 @@ export type ConfirmStatus = (typeof CONFIRM_STATUS)[keyof typeof CONFIRM_STATUS]
 
 export const EXAM_STATUS = {
   NOT_STARTED: "טרם התחיל",
+  /** QStash alarm sets this label to trigger SuperMail in Monday */
+  SEND_EXAM_NOW: "שלח מבחן כעת",
   INVITE_SENT: "נשלח קישור למבחן",
   IN_PROGRESS: "בתהליך",
   SUBMITTED: "הוגש",

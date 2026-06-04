@@ -8,11 +8,10 @@ export {
   updateCandidateScheduledAt,
 } from "./client";
 export {
-  filterDueCandidates,
-  getIsraelScheduleMinute,
-  listBoardItemsForCron,
-  markExamInviteSent,
-  isDueForExamInvite,
+  getScheduledCandidateRow,
+  triggerSuperMailExamDispatch,
+  isEligibleForExamInvite,
+  scheduledInstantFromRow,
 } from "./scheduled";
 export {
   MONDAY_COLUMNS,

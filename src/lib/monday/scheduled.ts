@@ -16,7 +16,7 @@ import { parseColumnText } from "./types";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const CRON_COLUMN_IDS = [
+const SCHEDULED_COLUMN_IDS = [
   MONDAY_COLUMNS.email,
   MONDAY_COLUMNS.examType,
   MONDAY_COLUMNS.magicLinkToken,
@@ -25,52 +25,15 @@ const CRON_COLUMN_IDS = [
   MONDAY_COLUMNS.scheduledAt,
 ] as const;
 
-type CronBoardItem = {
+type ScheduledBoardItem = {
   id: string;
   name: string;
   column_values: MondayColumnValue[];
 };
 
-type BoardItemsPageData = {
-  boards: Array<{
-    items_page: {
-      cursor: string | null;
-      items: CronBoardItem[];
-    };
-  }>;
+type ItemByIdData = {
+  items: ScheduledBoardItem[];
 };
-
-export type IsraelScheduleMinute = {
-  date: string;
-  time: string;
-};
-
-export function getIsraelScheduleMinute(now = new Date()): IsraelScheduleMinute {
-  const formatter = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Asia/Jerusalem",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-
-  const parts = formatter.formatToParts(now);
-  const get = (type: Intl.DateTimeFormatPartTypes) =>
-    parts.find((p) => p.type === type)?.value ?? "";
-
-  const day = get("day");
-  const month = get("month");
-  const year = get("year");
-  const hour = get("hour");
-  const minute = get("minute");
-
-  return {
-    date: `${year}-${month}-${day}`,
-    time: `${hour}:${minute}:00`,
-  };
-}
 
 export function parseMondayDateColumnValue(
   value: string | null | undefined
@@ -97,16 +60,7 @@ export function parseMondayDateColumnValue(
   }
 }
 
-function scheduledMinuteMatches(
-  scheduled: { date: string; time: string },
-  israelNow: IsraelScheduleMinute
-): boolean {
-  const scheduledHm = scheduled.time.slice(0, 5);
-  const nowHm = israelNow.time.slice(0, 5);
-  return scheduled.date === israelNow.date && scheduledHm === nowHm;
-}
-
-function rowFromItem(item: CronBoardItem): ScheduledCandidateRow | null {
+function rowFromItem(item: ScheduledBoardItem): ScheduledCandidateRow | null {
   const scheduledParsed = parseMondayDateColumnValue(
     item.column_values.find((c) => c.id === MONDAY_COLUMNS.scheduledAt)?.value
   );
@@ -134,58 +88,81 @@ function rowFromItem(item: CronBoardItem): ScheduledCandidateRow | null {
   };
 }
 
-export async function listBoardItemsForCron(): Promise<ScheduledCandidateRow[]> {
-  const rows: ScheduledCandidateRow[] = [];
-  let cursor: string | null = null;
-
-  do {
-    const data: BoardItemsPageData = await mondayFetch<BoardItemsPageData>({
-      query: `
-        query ListBoardItemsForCron($boardId: [ID!]!, $cursor: String) {
-          boards(ids: $boardId) {
-            items_page(limit: 100, cursor: $cursor) {
-              cursor
-              items {
-                id
-                name
-                column_values(ids: [${CRON_COLUMN_IDS.map((id) => `"${id}"`).join(", ")}]) {
-                  id
-                  text
-                  value
-                }
-              }
-            }
+export async function getScheduledCandidateRow(
+  itemId: string
+): Promise<ScheduledCandidateRow | null> {
+  const data = await mondayFetch<ItemByIdData>({
+    query: `
+      query GetScheduledCandidateRow($itemIds: [ID!]!) {
+        items(ids: $itemIds) {
+          id
+          name
+          column_values(ids: [${SCHEDULED_COLUMN_IDS.map((id) => `"${id}"`).join(", ")}]) {
+            id
+            text
+            value
           }
         }
-      `,
-      variables: {
-        boardId: [mondayConfig.boardId],
-        cursor,
-      },
-    });
-
-    const page = data.boards[0]?.items_page;
-    if (!page) {
-      break;
-    }
-
-    for (const item of page.items) {
-      const row = rowFromItem(item);
-      if (row) {
-        rows.push(row);
       }
-    }
+    `,
+    variables: { itemIds: [itemId] },
+  });
 
-    cursor = page.cursor;
-  } while (cursor);
+  const item = data.items[0];
+  if (!item) {
+    return null;
+  }
 
-  return rows;
+  return rowFromItem(item);
 }
 
-export function isDueForExamInvite(
-  row: ScheduledCandidateRow,
-  israelNow: IsraelScheduleMinute
-): boolean {
+/** Interprets Monday date/time columns as an instant in Asia/Jerusalem. */
+export function scheduledInstantFromRow(
+  row: Pick<ScheduledCandidateRow, "scheduledDate" | "scheduledTime">
+): Date | null {
+  if (row.scheduledDate === MONDAY_PLACEHOLDER_SCHEDULED_DATE.date) {
+    return null;
+  }
+
+  const timeHm = row.scheduledTime.slice(0, 5);
+  const target = `${row.scheduledDate} ${timeHm}`;
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Jerusalem",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+
+  let instant = Date.parse(`${row.scheduledDate}T${timeHm}:00Z`);
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const parts = Object.fromEntries(
+      formatter.formatToParts(new Date(instant)).map((p) => [p.type, p.value])
+    ) as Record<string, string>;
+    const shown = `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}`;
+    if (shown === target) {
+      return new Date(instant);
+    }
+
+    const [y, m, d] = row.scheduledDate.split("-").map(Number);
+    const [hh, mm] = timeHm.split(":").map(Number);
+    const shownDate = new Date(
+      Number(parts.year),
+      Number(parts.month) - 1,
+      Number(parts.day),
+      Number(parts.hour),
+      Number(parts.minute)
+    );
+    const targetDate = new Date(y, m - 1, d, hh, mm);
+    instant += targetDate.getTime() - shownDate.getTime();
+  }
+
+  return new Date(instant);
+}
+
+export function isEligibleForExamInvite(row: ScheduledCandidateRow): boolean {
   if (row.scheduledDate === MONDAY_PLACEHOLDER_SCHEDULED_DATE.date) {
     return false;
   }
@@ -206,27 +183,18 @@ export function isDueForExamInvite(
     return false;
   }
 
-  return scheduledMinuteMatches(
-    { date: row.scheduledDate, time: row.scheduledTime },
-    israelNow
-  );
+  return true;
 }
 
-export function filterDueCandidates(
-  rows: ScheduledCandidateRow[],
-  israelNow: IsraelScheduleMinute
-): ScheduledCandidateRow[] {
-  return rows.filter((row) => isDueForExamInvite(row, israelNow));
-}
-
-export async function markExamInviteSent(itemId: string): Promise<void> {
+/** Sets examStatus to SuperMail trigger label (color_mm3xcqrz). */
+export async function triggerSuperMailExamDispatch(itemId: string): Promise<void> {
   const columnValues = JSON.stringify({
-    [MONDAY_COLUMNS.examStatus]: { label: EXAM_STATUS.INVITE_SENT },
+    [MONDAY_COLUMNS.examStatus]: { label: EXAM_STATUS.SEND_EXAM_NOW },
   });
 
   await mondayFetch<ChangeMultipleColumnValuesData>({
     query: `
-      mutation MarkExamInviteSent(
+      mutation TriggerSuperMailExamDispatch(
         $boardId: ID!
         $itemId: ID!
         $columnValues: JSON!

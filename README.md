@@ -68,11 +68,11 @@ public/
 | `MONDAY_BOARD_ID`  | Server only | Board ID from Monday.com URL               |
 | `NEXT_PUBLIC_APP_URL` | Client + server | Magic links and exam invite emails |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` | Server only | Nodemailer SMTP (default user: `dev@beyondtcode.com`) |
-| `CRON_SECRET`      | Server only | Vercel Cron `Authorization: Bearer` for `/api/cron/check-scheduled-exams` |
+| `QSTASH_URL` / `QSTASH_TOKEN` / `QSTASH_CURRENT_SIGNING_KEY` / `QSTASH_NEXT_SIGNING_KEY` | Server only | Upstash QStash publish + webhook signature verification |
 
-### Vercel Cron (exam invites)
+### QStash exam invites (event-driven)
 
-[`vercel.json`](vercel.json) runs `/api/cron/check-scheduled-exams` every minute. Set all env vars in the Vercel project. After a successful invite email, Monday `examStatus` becomes **נשלח קישור למבחן** (label created automatically if missing).
+When an admin creates a candidate, the app schedules **one** QStash message for that Monday item at the chosen exam time (`deduplicationId`: `exam-invite-{itemId}`). At fire time, QStash POSTs to `/api/webhooks/send-exam-invite`, which loads the item, checks eligibility (approved, not started, valid email/token), and sets Monday `examStatus` (`color_mm3xcqrz`) to **שלח מבחן כעת** so SuperMail sends the invite. Set `NEXT_PUBLIC_APP_URL` to your public deployment URL so QStash can reach the webhook.
 
 Access via `src/lib/env.ts` in Server Components, Route Handlers, or Server Actions only.
 

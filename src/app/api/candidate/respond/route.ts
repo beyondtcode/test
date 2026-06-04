@@ -3,8 +3,10 @@ import { parseNonEmptyString } from "@/lib/api/validation";
 import {
   CONFIRM_STATUS,
   getCandidateByToken,
+  getScheduledCandidateRow,
   updateCandidateConfirmStatus,
 } from "@/lib/monday";
+import { scheduleExamInviteFromRow } from "@/lib/qstash/schedule-exam-invite";
 
 export const runtime = "nodejs";
 
@@ -57,6 +59,20 @@ export async function POST(request: Request) {
         : CONFIRM_STATUS.POSTPONED;
 
     await updateCandidateConfirmStatus(candidate.itemId, status);
+
+    if (choice === "approve") {
+      try {
+        const row = await getScheduledCandidateRow(candidate.itemId);
+        if (row) {
+          await scheduleExamInviteFromRow(row);
+        }
+      } catch (scheduleError) {
+        console.error(
+          `[api/candidate/respond] QStash reschedule failed for item ${candidate.itemId}:`,
+          scheduleError
+        );
+      }
+    }
 
     return NextResponse.json({ ok: true, choice });
   } catch (error) {

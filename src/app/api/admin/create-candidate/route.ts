@@ -17,6 +17,7 @@ import {
 } from "@/lib/monday";
 import { buildExamMagicLink, getRequestOrigin } from "@/lib/app-url";
 import { mondayConfig } from "@/lib/env";
+import { scheduleExamInviteAlarm } from "@/lib/qstash/schedule-exam-invite";
 import {
   ADMIN_SESSION_COOKIE_NAME,
   verifyAdminSessionCookieValue,
@@ -157,6 +158,15 @@ export async function POST(request: Request) {
 
     // Apply the real admin-entered date after create / send-details automation.
     await updateCandidateScheduledAt(createdItem.id, scheduledAt);
+
+    try {
+      await scheduleExamInviteAlarm(createdItem.id, scheduledAt);
+    } catch (scheduleError) {
+      console.error(
+        `[api/admin/create-candidate] QStash schedule failed for item ${createdItem.id}:`,
+        scheduleError
+      );
+    }
 
     const link = buildExamMagicLink(token);
 

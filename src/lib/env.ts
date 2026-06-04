@@ -66,8 +66,17 @@ export const smtpConfig = {
   },
 } as const;
 
-export const cronConfig = {
-  get secret() {
-    return requireEnv("CRON_SECRET");
+export const qstashConfig = {
+  get token() {
+    return requireEnv("QSTASH_TOKEN");
+  },
+  get url() {
+    return requireEnv("QSTASH_URL");
+  },
+  get currentSigningKey() {
+    return requireEnv("QSTASH_CURRENT_SIGNING_KEY");
+  },
+  get nextSigningKey() {
+    return requireEnv("QSTASH_NEXT_SIGNING_KEY");
   },
 } as const;
