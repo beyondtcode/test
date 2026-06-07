@@ -66,6 +66,12 @@ export const smtpConfig = {
   },
 } as const;
 
+export const mondayWebhookConfig = {
+  get secret() {
+    return requireEnv("MONDAY_WEBHOOK_SECRET");
+  },
+} as const;
+
 export const qstashConfig = {
   get token() {
     return requireEnv("QSTASH_TOKEN");
