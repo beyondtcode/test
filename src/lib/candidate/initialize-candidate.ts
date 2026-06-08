@@ -47,12 +47,16 @@ type ItemContactQueryData = {
   }>;
 };
 
-async function fetchItemContactFields(itemId: string): Promise<{
+export type CandidateContactFields = {
   name: string;
   email: string;
   phone: string;
   existingToken: string;
-}> {
+};
+
+export async function fetchCandidateContactFields(
+  itemId: string
+): Promise<CandidateContactFields> {
   const data = await mondayFetch<ItemContactQueryData>({
     query: `
       query FetchItemContactFields($itemIds: [ID!]!) {
@@ -94,7 +98,7 @@ export async function initializeCandidateItem(
   input: InitializeCandidateInput
 ): Promise<InitializeCandidateResult> {
   const itemId = input.itemId.trim();
-  const fromMonday = await fetchItemContactFields(itemId);
+  const fromMonday = await fetchCandidateContactFields(itemId);
 
   if (fromMonday.existingToken.trim()) {
     return {

@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { initializeCandidateItem } from "@/lib/candidate/initialize-candidate";
+import {
+  fetchCandidateContactFields,
+  initializeCandidateItem,
+  type InitializeCandidateInput,
+} from "@/lib/candidate/initialize-candidate";
 import { mondayConfig } from "@/lib/env";
 import { MONDAY_COLUMNS } from "@/lib/monday/columns";
 import { verifyMondayWebhookSecret } from "@/lib/webhooks/verify-monday-webhook-secret";
@@ -43,6 +47,18 @@ function boardIdMatches(event: MondayWebhookEvent): boolean {
     return true;
   }
   return String(event.boardId) === String(mondayConfig.boardId);
+}
+
+function isCreatePulseEvent(event: MondayWebhookEvent): boolean {
+  return !event.type || event.type === "create_pulse";
+}
+
+function isChangeColumnValueEvent(event: MondayWebhookEvent): boolean {
+  return !!event.type && COLUMN_UPDATE_EVENT_TYPES.has(event.type);
+}
+
+function shouldProcessEvent(event: MondayWebhookEvent): boolean {
+  return isCreatePulseEvent(event) || isChangeColumnValueEvent(event);
 }
 
 function readEmailFromRaw(raw: unknown): string | undefined {
@@ -98,31 +114,9 @@ function readPhoneFromColumnValues(
   return readPhoneFromRaw(columnValues[MONDAY_COLUMNS.phone]);
 }
 
-function isCandidateColumnUpdate(event: MondayWebhookEvent): boolean {
-  if (!event.type || !COLUMN_UPDATE_EVENT_TYPES.has(event.type)) {
-    return false;
-  }
-
-  return (
-    event.columnId === MONDAY_COLUMNS.email ||
-    event.columnId === MONDAY_COLUMNS.phone
-  );
-}
-
-function shouldProcessEvent(event: MondayWebhookEvent): boolean {
-  if (!event.type || event.type === "create_pulse") {
-    return true;
-  }
-
-  return isCandidateColumnUpdate(event);
-}
-
-function parseCandidateFromEvent(event: MondayWebhookEvent): {
-  itemId: string;
-  name?: string;
-  email?: string;
-  phone?: string;
-} | null {
+function parseCandidateFromCreatePulseEvent(
+  event: MondayWebhookEvent
+): InitializeCandidateInput | null {
   const itemId = parseItemId(event);
   if (!itemId) {
     return null;
@@ -133,23 +127,44 @@ function parseCandidateFromEvent(event: MondayWebhookEvent): {
       ? event.pulseName.trim()
       : undefined;
 
-  let email = readEmailFromColumnValues(event.columnValues);
-  let phone = readPhoneFromColumnValues(event.columnValues);
-
-  if (event.columnId === MONDAY_COLUMNS.email) {
-    email = readEmailFromRaw(event.value) ?? email;
-  }
-
-  if (event.columnId === MONDAY_COLUMNS.phone) {
-    phone = readPhoneFromRaw(event.value) ?? phone;
-  }
-
   return {
     itemId,
     name,
-    email,
-    phone,
+    email: readEmailFromColumnValues(event.columnValues),
+    phone: readPhoneFromColumnValues(event.columnValues),
   };
+}
+
+async function parseCandidateFromChangeColumnValueEvent(
+  event: MondayWebhookEvent
+): Promise<InitializeCandidateInput | null> {
+  const itemId = parseItemId(event);
+  if (!itemId) {
+    return null;
+  }
+
+  const contact = await fetchCandidateContactFields(itemId);
+
+  return {
+    itemId,
+    name: contact.name,
+    email: contact.email || undefined,
+    phone: contact.phone || undefined,
+  };
+}
+
+async function resolveCandidateFromEvent(
+  event: MondayWebhookEvent
+): Promise<InitializeCandidateInput | null> {
+  if (isChangeColumnValueEvent(event)) {
+    return parseCandidateFromChangeColumnValueEvent(event);
+  }
+
+  if (isCreatePulseEvent(event)) {
+    return parseCandidateFromCreatePulseEvent(event);
+  }
+
+  return null;
 }
 
 function isMissingEmailError(error: unknown): boolean {
@@ -157,6 +172,10 @@ function isMissingEmailError(error: unknown): boolean {
     error instanceof Error &&
     error.message.includes("missing a valid email address")
   );
+}
+
+function shouldReturnPendingForMissingEmail(event: MondayWebhookEvent): boolean {
+  return isCreatePulseEvent(event) || isChangeColumnValueEvent(event);
 }
 
 export async function POST(request: Request) {
@@ -197,7 +216,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const candidate = parseCandidateFromEvent(event);
+  const candidate = await resolveCandidateFromEvent(event);
   if (!candidate) {
     return NextResponse.json(
       { error: "Missing item id in event" },
@@ -217,10 +236,7 @@ export async function POST(request: Request) {
       { status: 200 }
     );
   } catch (error) {
-    if (
-      isMissingEmailError(error) &&
-      (!event.type || event.type === "create_pulse")
-    ) {
+    if (isMissingEmailError(error) && shouldReturnPendingForMissingEmail(event)) {
       return NextResponse.json(
         {
           itemId: candidate.itemId,
