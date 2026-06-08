@@ -36,6 +36,7 @@ export const mondayConfig = {
   get apiKey() {
     return normalizeMondayApiKey(requireEnv("MONDAY_API_KEY"));
   },
+  /** Central Exam Board — candidates are created and exams run here. */
   get boardId() {
     return requireEnv("MONDAY_BOARD_ID");
   },

@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
+import { initializeCandidateItem } from "@/lib/candidate/initialize-candidate";
 import {
-  fetchCandidateContactFields,
-  initializeCandidateItem,
-  type InitializeCandidateInput,
-} from "@/lib/candidate/initialize-candidate";
+  createExamBoardCandidateItem,
+  fetchJobBoardCandidateContact,
+} from "@/lib/candidate/job-board-to-exam-board";
 import { mondayConfig } from "@/lib/env";
 import { MONDAY_COLUMNS } from "@/lib/monday/columns";
 import { verifyMondayWebhookSecret } from "@/lib/webhooks/verify-monday-webhook-secret";
@@ -33,6 +33,8 @@ const COLUMN_UPDATE_EVENT_TYPES = new Set([
   "change_column_value",
 ]);
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 function parseItemId(event: MondayWebhookEvent): string | null {
   const raw = event.itemId ?? event.pulseId;
   if (raw === undefined || raw === null) {
@@ -42,11 +44,28 @@ function parseItemId(event: MondayWebhookEvent): string | null {
   return id.length > 0 ? id : null;
 }
 
-function boardIdMatches(event: MondayWebhookEvent): boolean {
+function eventBoardId(event: MondayWebhookEvent): string | null {
   if (event.boardId === undefined || event.boardId === null) {
+    return null;
+  }
+  const id = String(event.boardId).trim();
+  return id.length > 0 ? id : null;
+}
+
+function isCentralExamBoardEvent(event: MondayWebhookEvent): boolean {
+  const boardId = eventBoardId(event);
+  if (!boardId) {
+    return false;
+  }
+  return boardId === String(mondayConfig.boardId);
+}
+
+function isExamBoardCreateEvent(event: MondayWebhookEvent): boolean {
+  const boardId = eventBoardId(event);
+  if (!boardId) {
     return true;
   }
-  return String(event.boardId) === String(mondayConfig.boardId);
+  return boardId === String(mondayConfig.boardId);
 }
 
 function isCreatePulseEvent(event: MondayWebhookEvent): boolean {
@@ -55,10 +74,6 @@ function isCreatePulseEvent(event: MondayWebhookEvent): boolean {
 
 function isChangeColumnValueEvent(event: MondayWebhookEvent): boolean {
   return !!event.type && COLUMN_UPDATE_EVENT_TYPES.has(event.type);
-}
-
-function shouldProcessEvent(event: MondayWebhookEvent): boolean {
-  return isCreatePulseEvent(event) || isChangeColumnValueEvent(event);
 }
 
 function readEmailFromRaw(raw: unknown): string | undefined {
@@ -114,59 +129,6 @@ function readPhoneFromColumnValues(
   return readPhoneFromRaw(columnValues[MONDAY_COLUMNS.phone]);
 }
 
-function parseCandidateFromCreatePulseEvent(
-  event: MondayWebhookEvent
-): InitializeCandidateInput | null {
-  const itemId = parseItemId(event);
-  if (!itemId) {
-    return null;
-  }
-
-  const name =
-    typeof event.pulseName === "string" && event.pulseName.trim()
-      ? event.pulseName.trim()
-      : undefined;
-
-  return {
-    itemId,
-    name,
-    email: readEmailFromColumnValues(event.columnValues),
-    phone: readPhoneFromColumnValues(event.columnValues),
-  };
-}
-
-async function parseCandidateFromChangeColumnValueEvent(
-  event: MondayWebhookEvent
-): Promise<InitializeCandidateInput | null> {
-  const itemId = parseItemId(event);
-  if (!itemId) {
-    return null;
-  }
-
-  const contact = await fetchCandidateContactFields(itemId);
-
-  return {
-    itemId,
-    name: contact.name,
-    email: contact.email || undefined,
-    phone: contact.phone || undefined,
-  };
-}
-
-async function resolveCandidateFromEvent(
-  event: MondayWebhookEvent
-): Promise<InitializeCandidateInput | null> {
-  if (isChangeColumnValueEvent(event)) {
-    return parseCandidateFromChangeColumnValueEvent(event);
-  }
-
-  if (isCreatePulseEvent(event)) {
-    return parseCandidateFromCreatePulseEvent(event);
-  }
-
-  return null;
-}
-
 function isMissingEmailError(error: unknown): boolean {
   return (
     error instanceof Error &&
@@ -174,8 +136,103 @@ function isMissingEmailError(error: unknown): boolean {
   );
 }
 
-function shouldReturnPendingForMissingEmail(event: MondayWebhookEvent): boolean {
-  return isCreatePulseEvent(event) || isChangeColumnValueEvent(event);
+async function handleJobBoardStatusChange(event: MondayWebhookEvent) {
+  const jobBoardId = eventBoardId(event);
+  const jobBoardItemId = parseItemId(event);
+
+  if (!jobBoardId || !jobBoardItemId) {
+    return NextResponse.json(
+      { error: "Missing board id or item id in Job Board event" },
+      { status: 400 }
+    );
+  }
+
+  const contact = await fetchJobBoardCandidateContact({
+    boardId: jobBoardId,
+    itemId: jobBoardItemId,
+  });
+
+  if (!contact.email || !EMAIL_RE.test(contact.email)) {
+    return NextResponse.json(
+      {
+        jobBoardId,
+        jobBoardItemId,
+        status: "pending",
+        reason: "missing_email",
+      },
+      { status: 200 }
+    );
+  }
+
+  const examBoardItemId = await createExamBoardCandidateItem({
+    name: contact.name,
+    email: contact.email,
+    phone: contact.phone || undefined,
+  });
+
+  const result = await initializeCandidateItem({
+    itemId: examBoardItemId,
+    name: contact.name,
+    email: contact.email,
+    phone: contact.phone || undefined,
+  });
+
+  return NextResponse.json(
+    {
+      jobBoardId,
+      jobBoardItemId,
+      examBoardItemId: result.itemId,
+      status: result.alreadyInitialized ? "already_initialized" : "initialized",
+      scheduled: result.scheduled,
+    },
+    { status: 200 }
+  );
+}
+
+async function handleExamBoardCreatePulse(event: MondayWebhookEvent) {
+  const itemId = parseItemId(event);
+  if (!itemId) {
+    return NextResponse.json(
+      { error: "Missing item id in event" },
+      { status: 400 }
+    );
+  }
+
+  const name =
+    typeof event.pulseName === "string" && event.pulseName.trim()
+      ? event.pulseName.trim()
+      : undefined;
+
+  try {
+    const result = await initializeCandidateItem({
+      itemId,
+      name,
+      email: readEmailFromColumnValues(event.columnValues),
+      phone: readPhoneFromColumnValues(event.columnValues),
+    });
+
+    return NextResponse.json(
+      {
+        itemId: result.itemId,
+        status: result.alreadyInitialized ? "already_initialized" : "initialized",
+        scheduled: result.scheduled,
+      },
+      { status: 200 }
+    );
+  } catch (error) {
+    if (isMissingEmailError(error)) {
+      return NextResponse.json(
+        {
+          itemId,
+          status: "pending",
+          reason: "missing_email",
+        },
+        { status: 200 }
+      );
+    }
+
+    throw error;
+  }
 }
 
 export async function POST(request: Request) {
@@ -202,58 +259,42 @@ export async function POST(request: Request) {
     );
   }
 
-  if (!boardIdMatches(event)) {
-    return NextResponse.json(
-      { status: "ignored", reason: "board_mismatch" },
-      { status: 200 }
-    );
-  }
+  try {
+    if (isChangeColumnValueEvent(event)) {
+      if (isCentralExamBoardEvent(event)) {
+        return NextResponse.json(
+          { status: "ignored", reason: "exam_board_column_change" },
+          { status: 200 }
+        );
+      }
 
-  if (!shouldProcessEvent(event)) {
+      return await handleJobBoardStatusChange(event);
+    }
+
+    if (isCreatePulseEvent(event)) {
+      if (!isExamBoardCreateEvent(event)) {
+        return NextResponse.json(
+          { status: "ignored", reason: "not_exam_board_create" },
+          { status: 200 }
+        );
+      }
+
+      return await handleExamBoardCreatePulse(event);
+    }
+
     return NextResponse.json(
       { status: "ignored", reason: "unsupported_event_type" },
       { status: 200 }
     );
-  }
-
-  const candidate = await resolveCandidateFromEvent(event);
-  if (!candidate) {
-    return NextResponse.json(
-      { error: "Missing item id in event" },
-      { status: 400 }
-    );
-  }
-
-  try {
-    const result = await initializeCandidateItem(candidate);
-
-    return NextResponse.json(
-      {
-        itemId: result.itemId,
-        status: result.alreadyInitialized ? "already_initialized" : "initialized",
-        scheduled: result.scheduled,
-      },
-      { status: 200 }
-    );
   } catch (error) {
-    if (isMissingEmailError(error) && shouldReturnPendingForMissingEmail(event)) {
-      return NextResponse.json(
-        {
-          itemId: candidate.itemId,
-          status: "pending",
-          reason: "missing_email",
-        },
-        { status: 200 }
-      );
-    }
-
+    const itemId = parseItemId(event);
     console.error(
-      `[api/monday-webhook] item ${candidate.itemId}:`,
+      `[api/monday-webhook]${itemId ? ` item ${itemId}` : ""}:`,
       error
     );
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { error: message, itemId: candidate.itemId },
+      { error: message, ...(itemId ? { itemId } : {}) },
       { status: 500 }
     );
   }
