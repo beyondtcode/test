@@ -1,7 +1,10 @@
 import { mondayConfig } from "@/lib/env";
 import { mondayFetch } from "@/lib/monday/client";
-import { MONDAY_COLUMNS } from "@/lib/monday/columns";
-import type { MondayColumnValue } from "@/lib/monday/types";
+import { JOB_BOARD_COLUMNS, MONDAY_COLUMNS } from "@/lib/monday/columns";
+import type {
+  ChangeMultipleColumnValuesData,
+  MondayColumnValue,
+} from "@/lib/monday/types";
 
 type JobBoardColumnValue = MondayColumnValue & {
   type?: string | null;
@@ -199,4 +202,45 @@ export async function createExamBoardCandidateItem(contact: {
   });
 
   return createdItem.id;
+}
+
+/** Links a Job Board item to its newly created Central Exam Board item. */
+export async function linkJobBoardItemToExamBoardItem({
+  jobBoardId,
+  jobBoardItemId,
+  examBoardItemId,
+}: {
+  jobBoardId: string;
+  jobBoardItemId: string;
+  examBoardItemId: string;
+}): Promise<void> {
+  const columnValues = JSON.stringify({
+    [JOB_BOARD_COLUMNS.examBoardLink]: {
+      linkedPulseIds: [{ linkedPulseId: Number(examBoardItemId) }],
+    },
+  });
+
+  await mondayFetch<ChangeMultipleColumnValuesData>({
+    query: `
+      mutation LinkJobBoardToExamBoard(
+        $boardId: ID!
+        $itemId: ID!
+        $columnValues: JSON!
+      ) {
+        change_multiple_column_values(
+          board_id: $boardId
+          item_id: $itemId
+          column_values: $columnValues
+          create_labels_if_missing: true
+        ) {
+          id
+        }
+      }
+    `,
+    variables: {
+      boardId: jobBoardId,
+      itemId: jobBoardItemId,
+      columnValues,
+    },
+  });
 }

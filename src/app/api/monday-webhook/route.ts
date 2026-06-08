@@ -3,6 +3,7 @@ import { initializeCandidateItem } from "@/lib/candidate/initialize-candidate";
 import {
   createExamBoardCandidateItem,
   fetchJobBoardCandidateContact,
+  linkJobBoardItemToExamBoardItem,
 } from "@/lib/candidate/job-board-to-exam-board";
 import { mondayConfig } from "@/lib/env";
 import { MONDAY_COLUMNS } from "@/lib/monday/columns";
@@ -168,6 +169,12 @@ async function handleJobBoardStatusChange(event: MondayWebhookEvent) {
     name: contact.name,
     email: contact.email,
     phone: contact.phone || undefined,
+  });
+
+  await linkJobBoardItemToExamBoardItem({
+    jobBoardId,
+    jobBoardItemId,
+    examBoardItemId,
   });
 
   const result = await initializeCandidateItem({

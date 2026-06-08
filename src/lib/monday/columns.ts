@@ -38,6 +38,12 @@ export const MONDAY_COLUMNS = {
   notes: "text_mm40g870",
 } as const;
 
+/** Columns on template Job Boards (shared across dynamically created boards). */
+export const JOB_BOARD_COLUMNS = {
+  /** Connect column linking to the Central Exam Board item */
+  examBoardLink: "board_relation_mm44c77e",
+} as const;
+
 export const CONFIRM_STATUS = {
   APPROVED: "אושר",
   POSTPONED: "נדחה",
