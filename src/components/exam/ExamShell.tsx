@@ -16,7 +16,7 @@ export function ExamShell({
     <div
       dir="rtl"
       lang="he"
-      className={`min-h-screen bg-gradient-to-b from-slate-50 via-white to-indigo-50/40 text-right text-slate-800 antialiased ${className}`}
+      className={`min-h-screen bg-gradient-to-b from-brand-50/70 via-white to-violet-100/50 text-right text-slate-800 antialiased ${className}`}
     >
       {showLogo && (
         <div className="flex justify-center px-4 pb-2 pt-8 sm:pt-10">

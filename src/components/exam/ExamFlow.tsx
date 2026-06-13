@@ -81,7 +81,7 @@ function PrimaryButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-md shadow-indigo-200/60 transition hover:bg-indigo-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
+      className={`rounded-xl bg-brand-600 px-6 py-3 text-sm font-semibold text-white shadow-md shadow-brand-200/60 transition hover:bg-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
     >
       {children}
     </button>
@@ -99,7 +99,7 @@ function SecondaryButton({
     <button
       type="button"
       onClick={onClick}
-      className="rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
+      className="rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
     >
       {children}
     </button>
@@ -112,7 +112,7 @@ function LoadingView() {
       <div className="flex min-h-[60vh] items-center justify-center px-4">
         <ExamCard className="text-center">
           <div
-            className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600"
+            className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-brand-200 border-t-brand-600"
             role="status"
             aria-label="טוען"
           />
@@ -221,13 +221,13 @@ function ExamStickyHeader({
     <header className="sticky top-0 z-20 border-b border-slate-200/90 bg-white/95 shadow-sm backdrop-blur-md">
       <div className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
         <p className="truncate text-sm font-semibold text-slate-800 sm:text-base">
-          מועמדת: <span className="text-indigo-700">{candidateName}</span>
+          מועמדת: <span className="text-brand-700">{candidateName}</span>
         </p>
         <div className="flex shrink-0 items-center gap-2">
           <button
             type="button"
             onClick={onToggleTimer}
-            className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-indigo-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+            className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-brand-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
             aria-pressed={timerVisible}
             aria-label={
               timerVisible ? "הסתרת טיימר" : "הצגת טיימר"
@@ -637,8 +637,8 @@ export function ExamFlow() {
             <h1 className="text-2xl font-bold leading-snug text-slate-900">
               {welcomeHeading(candidate.name, candidate.examTypeLabel)}
             </h1>
-            <div className="mt-6 rounded-xl border border-indigo-100 bg-indigo-50/50 p-5">
-              <h2 className="text-lg font-semibold text-indigo-900">
+            <div className="mt-6 rounded-xl border border-brand-100 bg-brand-50/50 p-5">
+              <h2 className="text-lg font-semibold text-brand-900">
                 כללי המבחן
               </h2>
               <ul className="mt-3 list-inside list-disc space-y-2.5 text-sm leading-relaxed text-slate-700">
@@ -714,7 +714,7 @@ export function ExamFlow() {
                     key={optionIndex}
                     className={`flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-3 transition ${
                       selected
-                        ? "border-indigo-300 bg-indigo-50 ring-1 ring-indigo-200"
+                        ? "border-brand-300 bg-brand-50 ring-1 ring-brand-200"
                         : "border-transparent hover:border-slate-200 hover:bg-slate-50"
                     }`}
                   >
@@ -725,7 +725,7 @@ export function ExamFlow() {
                       onChange={() =>
                         handleAnswerChange(question.id, optionIndex)
                       }
-                      className="h-4 w-4 shrink-0 accent-indigo-600"
+                      className="h-4 w-4 shrink-0 accent-brand-600"
                     />
                     <span className="text-sm leading-relaxed text-slate-800">
                       {option}

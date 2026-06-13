@@ -35,7 +35,7 @@ function LoadingView() {
       <div className="flex min-h-[60vh] items-center justify-center px-4 pb-12">
         <RespondCard className="text-center">
           <div
-            className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600"
+            className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-brand-200 border-t-brand-600"
             role="status"
             aria-label="טוען"
           />
@@ -61,7 +61,7 @@ function SuccessView({
         <RespondCard className="text-center">
           <div
             className={`respond-icon mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full ${
-              isApprove ? "bg-emerald-50" : "bg-indigo-50"
+              isApprove ? "bg-emerald-50" : "bg-brand-50"
             }`}
             aria-hidden
           >
@@ -82,7 +82,7 @@ function SuccessView({
               </svg>
             ) : (
               <svg
-                className="h-12 w-12 text-indigo-600"
+                className="h-12 w-12 text-brand-600"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"

@@ -18,7 +18,7 @@ export default async function AdminDashboardPage() {
     <main
       dir="rtl"
       lang="he"
-      className={`${heebo.className} min-h-screen bg-gradient-to-b from-slate-50 via-white to-indigo-50/40 text-right text-slate-800`}
+      className={`${heebo.className} min-h-screen bg-gradient-to-b from-brand-50/70 via-white to-violet-100/50 text-right text-slate-800`}
     >
       <div className="mx-auto flex min-h-screen max-w-3xl flex-col items-center justify-start px-6 py-10">
         <div className="w-full">
