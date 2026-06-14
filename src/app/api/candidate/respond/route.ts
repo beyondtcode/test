@@ -1,45 +1,31 @@
 import { NextResponse } from "next/server";
 import { parseNonEmptyString } from "@/lib/api/validation";
 import {
-  CONFIRM_STATUS,
+  combineDateAndTime,
+  formatAdminScheduledDateLabel,
+  isRespondTimeSlot,
+} from "@/lib/candidate/respond-time-slots";
+import {
+  confirmCandidateExamSchedule,
   getCandidateByToken,
   getScheduledCandidateRow,
-  updateCandidateConfirmStatus,
+  MONDAY_PLACEHOLDER_SCHEDULED_DATE,
 } from "@/lib/monday";
 import { scheduleExamInviteFromRow } from "@/lib/qstash/schedule-exam-invite";
 
 export const runtime = "nodejs";
 
-type RespondChoice = "approve" | "postpone";
+const MISSING_DATE_ERROR =
+  "לא הוגדר תאריך מבחן. נא לפנות למנהל הגיוס.";
 
-function parseChoice(value: unknown): RespondChoice | null {
-  const choice = parseNonEmptyString(value, "choice");
-  if (choice === "approve" || choice === "postpone") {
-    return choice;
-  }
-  return null;
-}
-
-export async function POST(request: Request) {
+export async function GET(request: Request) {
   try {
-    const body = (await request.json()) as {
-      token?: unknown;
-      choice?: unknown;
-    };
-
-    const token = parseNonEmptyString(body.token, "token");
-    const choice = parseChoice(body.choice);
+    const { searchParams } = new URL(request.url);
+    const token = parseNonEmptyString(searchParams.get("token"), "token");
 
     if (!token) {
       return NextResponse.json(
         { error: "קישור לא תקין — חסר מזהה." },
-        { status: 400 }
-      );
-    }
-
-    if (!choice) {
-      return NextResponse.json(
-        { error: "קישור לא תקין — בחירה לא חוקית." },
         { status: 400 }
       );
     }
@@ -53,30 +39,90 @@ export async function POST(request: Request) {
       );
     }
 
-    const status =
-      choice === "approve"
-        ? CONFIRM_STATUS.APPROVED
-        : CONFIRM_STATUS.POSTPONED;
+    const row = await getScheduledCandidateRow(candidate.itemId);
+    const scheduledDate = row?.scheduledDate?.trim() ?? "";
 
-    await updateCandidateConfirmStatus(candidate.itemId, status);
-
-    if (choice === "approve") {
-      try {
-        const row = await getScheduledCandidateRow(candidate.itemId);
-        if (row) {
-          await scheduleExamInviteFromRow(row);
-        }
-      } catch (scheduleError) {
-        console.error(
-          `[api/candidate/respond] QStash reschedule failed for item ${candidate.itemId}:`,
-          scheduleError
-        );
-      }
+    if (
+      !scheduledDate ||
+      scheduledDate === MONDAY_PLACEHOLDER_SCHEDULED_DATE.date
+    ) {
+      return NextResponse.json({ error: MISSING_DATE_ERROR }, { status: 400 });
     }
 
-    return NextResponse.json({ ok: true, choice });
+    return NextResponse.json({
+      scheduledDate,
+      scheduledDateLabel: formatAdminScheduledDateLabel(scheduledDate),
+    });
   } catch (error) {
-    console.error("[api/candidate/respond]", error);
+    console.error("[api/candidate/respond] GET", error);
+    return NextResponse.json(
+      { error: "אירעה שגיאה בטעינת פרטי המבחן. נא לנסות שוב מאוחר יותר." },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const body = (await request.json()) as {
+      token?: unknown;
+      time?: unknown;
+    };
+
+    const token = parseNonEmptyString(body.token, "token");
+    const timeSlot = parseNonEmptyString(body.time, "time");
+
+    if (!token) {
+      return NextResponse.json(
+        { error: "קישור לא תקין — חסר מזהה." },
+        { status: 400 }
+      );
+    }
+
+    if (!timeSlot || !isRespondTimeSlot(timeSlot)) {
+      return NextResponse.json(
+        { error: "שעת המבחן שנבחרה אינה חוקית." },
+        { status: 400 }
+      );
+    }
+
+    const candidate = await getCandidateByToken(token);
+
+    if (!candidate) {
+      return NextResponse.json(
+        { error: "הקישור אינו תקין או שפג תוקפו." },
+        { status: 404 }
+      );
+    }
+
+    const row = await getScheduledCandidateRow(candidate.itemId);
+    const scheduledDate = row?.scheduledDate?.trim() ?? "";
+
+    if (
+      !scheduledDate ||
+      scheduledDate === MONDAY_PLACEHOLDER_SCHEDULED_DATE.date
+    ) {
+      return NextResponse.json({ error: MISSING_DATE_ERROR }, { status: 400 });
+    }
+
+    const scheduledAt = combineDateAndTime(scheduledDate, timeSlot);
+    await confirmCandidateExamSchedule(candidate.itemId, scheduledAt);
+
+    try {
+      const updatedRow = await getScheduledCandidateRow(candidate.itemId);
+      if (updatedRow) {
+        await scheduleExamInviteFromRow(updatedRow);
+      }
+    } catch (scheduleError) {
+      console.error(
+        `[api/candidate/respond] QStash reschedule failed for item ${candidate.itemId}:`,
+        scheduleError
+      );
+    }
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error("[api/candidate/respond] POST", error);
     return NextResponse.json(
       { error: "אירעה שגיאה בעדכון התשובה. נא לנסות שוב או לפנות למנהל הגיוס." },
       { status: 500 }

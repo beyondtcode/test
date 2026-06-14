@@ -1,6 +1,7 @@
 import { examTypeIdFromMondayLabel } from "@/lib/exam/exam-types";
 import { mondayConfig } from "@/lib/env";
 import {
+  CONFIRM_STATUS,
   EXAM_STATUS,
   MONDAY_COLUMNS,
   passResultLabelFromSubmission,
@@ -251,6 +252,42 @@ export async function updateCandidateScheduledAt(
   await mondayFetch<ChangeMultipleColumnValuesData>({
     query: `
       mutation UpdateCandidateScheduledAt(
+        $boardId: ID!
+        $itemId: ID!
+        $columnValues: JSON!
+      ) {
+        change_multiple_column_values(
+          board_id: $boardId
+          item_id: $itemId
+          column_values: $columnValues
+          create_labels_if_missing: true
+        ) {
+          id
+        }
+      }
+    `,
+    variables: {
+      boardId: mondayConfig.boardId,
+      itemId,
+      columnValues,
+    },
+  });
+}
+
+/** Sets scheduled exam datetime and marks candidate approval as "אושר". */
+export async function confirmCandidateExamSchedule(
+  itemId: string,
+  scheduledAt: Date
+): Promise<void> {
+  const { date, time } = formatMondayDateTime(scheduledAt);
+  const columnValues = JSON.stringify({
+    [MONDAY_COLUMNS.scheduledAt]: { date, time },
+    [MONDAY_COLUMNS.statusConfirm]: { label: CONFIRM_STATUS.APPROVED },
+  });
+
+  await mondayFetch<ChangeMultipleColumnValuesData>({
+    query: `
+      mutation ConfirmCandidateExamSchedule(
         $boardId: ID!
         $itemId: ID!
         $columnValues: JSON!

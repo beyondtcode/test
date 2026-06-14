@@ -6,6 +6,7 @@ export {
   verifyCandidateToken,
   updateCandidateConfirmStatus,
   updateCandidateScheduledAt,
+  confirmCandidateExamSchedule,
 } from "./client";
 export {
   getScheduledCandidateRow,
