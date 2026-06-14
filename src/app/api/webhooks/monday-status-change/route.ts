@@ -1,8 +1,15 @@
 import { NextResponse } from "next/server";
-import { mondayConfig } from "@/lib/env";
-import { CONFIRM_STATUS, MONDAY_COLUMNS } from "@/lib/monday/columns";
 import { getScheduledCandidateRow } from "@/lib/monday/scheduled";
 import { scheduleExamInviteFromRow } from "@/lib/qstash/schedule-exam-invite";
+import { handleJobBoardStatusChange } from "@/lib/webhooks/handle-job-board-status-change";
+import {
+  isApprovedConfirmStatusChange,
+  isCentralExamBoardEvent,
+  isChangeColumnValueEvent,
+  parseItemId,
+  statusLabelText,
+  type MondayWebhookEvent,
+} from "@/lib/webhooks/monday-event";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,58 +18,6 @@ type MondayWebhookBody = {
   challenge?: string;
   event?: MondayWebhookEvent;
 };
-
-type MondayWebhookEvent = {
-  boardId?: number | string;
-  pulseId?: number | string;
-  itemId?: number | string;
-  columnId?: string;
-  type?: string;
-  value?: {
-    label?: {
-      text?: string;
-    };
-  };
-};
-
-function parseItemId(event: MondayWebhookEvent): string | null {
-  const raw = event.itemId ?? event.pulseId;
-  if (raw === undefined || raw === null) {
-    return null;
-  }
-  const id = String(raw).trim();
-  return id.length > 0 ? id : null;
-}
-
-function statusLabelText(event: MondayWebhookEvent): string | null {
-  const text = event.value?.label?.text;
-  if (typeof text !== "string" || !text.trim()) {
-    return null;
-  }
-  return text.trim();
-}
-
-function boardIdMatches(event: MondayWebhookEvent): boolean {
-  if (event.boardId === undefined || event.boardId === null) {
-    return true;
-  }
-  return String(event.boardId) === String(mondayConfig.boardId);
-}
-
-function isApprovedConfirmStatusChange(event: MondayWebhookEvent): boolean {
-  if (!boardIdMatches(event)) {
-    return false;
-  }
-
-  if (
-    event.columnId &&
-    event.columnId !== MONDAY_COLUMNS.statusConfirm
-  ) {
-    return false;
-  }
-
-  return statusLabelText(event) === CONFIRM_STATUS.APPROVED;
-}
 
 export async function POST(request: Request) {
   let body: MondayWebhookBody;
@@ -84,7 +39,44 @@ export async function POST(request: Request) {
     );
   }
 
+  if (!isCentralExamBoardEvent(event)) {
+    if (isChangeColumnValueEvent(event)) {
+      try {
+        return await handleJobBoardStatusChange(event);
+      } catch (error) {
+        const itemId = parseItemId(event);
+        console.error(
+          `[webhooks/monday-status-change] job board${itemId ? ` item ${itemId}` : ""}:`,
+          error
+        );
+        const message = error instanceof Error ? error.message : "Unknown error";
+        return NextResponse.json(
+          { error: message, ...(itemId ? { itemId } : {}) },
+          { status: 500 }
+        );
+      }
+    }
+
+    console.info("[webhooks/monday-status-change] ignored:", {
+      reason: "unsupported_non_exam_board_event",
+      boardId: event.boardId,
+      type: event.type,
+      columnId: event.columnId,
+    });
+    return NextResponse.json(
+      { status: "ignored", reason: "unsupported_non_exam_board_event" },
+      { status: 200 }
+    );
+  }
+
   if (!isApprovedConfirmStatusChange(event)) {
+    console.info("[webhooks/monday-status-change] ignored:", {
+      reason: "not_approved_status_change",
+      boardId: event.boardId,
+      columnId: event.columnId,
+      statusLabel: statusLabelText(event),
+      type: event.type,
+    });
     return NextResponse.json(
       { status: "ignored", reason: "not_approved_status_change" },
       { status: 200 }
@@ -102,6 +94,10 @@ export async function POST(request: Request) {
   try {
     const row = await getScheduledCandidateRow(itemId);
     if (!row) {
+      console.info("[webhooks/monday-status-change] skipped:", {
+        itemId,
+        reason: "not_found",
+      });
       return NextResponse.json(
         { itemId, status: "skipped", reason: "not_found" },
         { status: 200 }
