@@ -1,5 +1,6 @@
 export {
   mondayFetch,
+  getCandidateItemIdByToken,
   getCandidateByToken,
   startCandidateExam,
   submitCandidateExam,

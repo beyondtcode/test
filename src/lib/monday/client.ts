@@ -100,6 +100,46 @@ const GET_CANDIDATE_BY_TOKEN = `
   }
 `;
 
+const GET_CANDIDATE_ITEM_ID_BY_TOKEN = `
+  query GetCandidateItemIdByToken($boardId: ID!, $token: String!) {
+    items_page_by_column_values(
+      board_id: $boardId
+      limit: 1
+      columns: [
+        {
+          column_id: "${MONDAY_COLUMNS.magicLinkToken}"
+          column_values: [$token]
+        }
+      ]
+    ) {
+      items {
+        id
+      }
+    }
+  }
+`;
+
+type CandidateItemIdByTokenData = {
+  items_page_by_column_values: {
+    items: Array<{ id: string }>;
+  };
+};
+
+/** Token lookup for respond flow — does not require a valid exam type label. */
+export async function getCandidateItemIdByToken(
+  token: string
+): Promise<string | null> {
+  const data = await mondayFetch<CandidateItemIdByTokenData>({
+    query: GET_CANDIDATE_ITEM_ID_BY_TOKEN,
+    variables: {
+      boardId: mondayConfig.boardId,
+      token,
+    },
+  });
+
+  return data.items_page_by_column_values.items[0]?.id ?? null;
+}
+
 export async function getCandidateByToken(
   token: string
 ): Promise<CandidateRecord | null> {

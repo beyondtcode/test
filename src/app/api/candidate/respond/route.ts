@@ -7,7 +7,7 @@ import {
 } from "@/lib/candidate/respond-time-slots";
 import {
   confirmCandidateExamSchedule,
-  getCandidateByToken,
+  getCandidateItemIdByToken,
   getScheduledCandidateRow,
   MONDAY_PLACEHOLDER_SCHEDULED_DATE,
 } from "@/lib/monday";
@@ -30,16 +30,16 @@ export async function GET(request: Request) {
       );
     }
 
-    const candidate = await getCandidateByToken(token);
+    const itemId = await getCandidateItemIdByToken(token);
 
-    if (!candidate) {
+    if (!itemId) {
       return NextResponse.json(
         { error: "הקישור אינו תקין או שפג תוקפו." },
         { status: 404 }
       );
     }
 
-    const row = await getScheduledCandidateRow(candidate.itemId);
+    const row = await getScheduledCandidateRow(itemId);
     const scheduledDate = row?.scheduledDate?.trim() ?? "";
 
     if (
@@ -86,16 +86,16 @@ export async function POST(request: Request) {
       );
     }
 
-    const candidate = await getCandidateByToken(token);
+    const itemId = await getCandidateItemIdByToken(token);
 
-    if (!candidate) {
+    if (!itemId) {
       return NextResponse.json(
         { error: "הקישור אינו תקין או שפג תוקפו." },
         { status: 404 }
       );
     }
 
-    const row = await getScheduledCandidateRow(candidate.itemId);
+    const row = await getScheduledCandidateRow(itemId);
     const scheduledDate = row?.scheduledDate?.trim() ?? "";
 
     if (
@@ -106,16 +106,16 @@ export async function POST(request: Request) {
     }
 
     const scheduledAt = combineDateAndTime(scheduledDate, timeSlot);
-    await confirmCandidateExamSchedule(candidate.itemId, scheduledAt);
+    await confirmCandidateExamSchedule(itemId, scheduledAt);
 
     try {
-      const updatedRow = await getScheduledCandidateRow(candidate.itemId);
+      const updatedRow = await getScheduledCandidateRow(itemId);
       if (updatedRow) {
         await scheduleExamInviteFromRow(updatedRow);
       }
     } catch (scheduleError) {
       console.error(
-        `[api/candidate/respond] QStash reschedule failed for item ${candidate.itemId}:`,
+        `[api/candidate/respond] QStash reschedule failed for item ${itemId}:`,
         scheduleError
       );
     }
