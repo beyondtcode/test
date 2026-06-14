@@ -1,7 +1,8 @@
 import * as XLSX from "xlsx";
 
 export type ParsedCandidateRow = {
-  name: string;
+  firstName: string;
+  familyName: string;
   email: string;
   phone: string;
   seminary: string;
@@ -18,7 +19,8 @@ export type ParseCandidateSheetResult = {
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 type FieldKey =
-  | "name"
+  | "firstName"
+  | "familyName"
   | "email"
   | "phone"
   | "seminary"
@@ -26,7 +28,15 @@ type FieldKey =
   | "examName";
 
 const HEADER_ALIASES: Record<FieldKey, string[]> = {
-  name: ["name", "שם ושם משפחה"],
+  firstName: ["first name", "firstname", "given name", "name", "שם", "שם פרטי"],
+  familyName: [
+    "family name",
+    "familyname",
+    "last name",
+    "lastname",
+    "surname",
+    "שם משפחה",
+  ],
   email: ["email", "מייל"],
   phone: ["phone", "טלפון"],
   seminary: ["seminary", "סמינר"],
@@ -34,16 +44,30 @@ const HEADER_ALIASES: Record<FieldKey, string[]> = {
   examName: ["exam name", "examname", "שם מבחן"],
 };
 
-const REQUIRED_FIELDS: FieldKey[] = ["name", "email", "examName"];
+const REQUIRED_FIELDS: FieldKey[] = [
+  "firstName",
+  "familyName",
+  "email",
+  "examName",
+];
 
 const FIELD_LABELS_HE: Record<FieldKey, string> = {
-  name: "שם",
+  firstName: "שם",
+  familyName: "שם משפחה",
   email: "מייל",
   phone: "טלפון",
   seminary: "סמינר",
   notes: "הערות",
   examName: "שם מבחן",
 };
+
+/** Builds the single Monday item name from separate Excel name columns. */
+export function formatCandidateFullName(
+  firstName: string,
+  familyName: string
+): string {
+  return `${firstName.trim()} ${familyName.trim()}`.trim();
+}
 
 function normalizeHeader(value: unknown): string {
   return String(value ?? "")
@@ -91,13 +115,17 @@ function isBlankDataRow(row: unknown[]): boolean {
 }
 
 export function validateParsedRow(row: {
-  name: string;
+  firstName: string;
+  familyName: string;
   email: string;
   examName: string;
   sheetRow: number;
 }): string | null {
-  if (!row.name) {
-    return "חסר שם מועמדת.";
+  if (!row.firstName) {
+    return "חסר שם פרטי.";
+  }
+  if (!row.familyName) {
+    return "חסר שם משפחה.";
   }
   if (!row.email) {
     return "חסר אימייל.";
@@ -158,7 +186,8 @@ export function parseCandidateSheet(buffer: Buffer): ParseCandidateSheetResult {
 
     const sheetRow = i + 1;
     rows.push({
-      name: cellValue(dataRow, indexByField.name),
+      firstName: cellValue(dataRow, indexByField.firstName),
+      familyName: cellValue(dataRow, indexByField.familyName),
       email: cellValue(dataRow, indexByField.email),
       phone: cellValue(dataRow, indexByField.phone),
       seminary: cellValue(dataRow, indexByField.seminary),

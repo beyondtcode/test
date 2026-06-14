@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { generateCandidateMagicToken } from "@/lib/candidate/token";
 import {
+  formatCandidateFullName,
   parseCandidateSheet,
   ParseCandidateSheetError,
   validateParsedRow,
@@ -120,11 +121,12 @@ export async function POST(request: Request) {
     let imported = 0;
 
     for (const row of parsed.rows) {
+      const fullName = formatCandidateFullName(row.firstName, row.familyName);
       const validationError = validateParsedRow(row);
       if (validationError) {
         errors.push({
           row: row.sheetRow,
-          name: row.name || undefined,
+          name: fullName || undefined,
           message: validationError,
         });
         continue;
@@ -135,7 +137,7 @@ export async function POST(request: Request) {
         const columnValues = buildImportColumnValues(row, token);
         await createCandidateItemInGroup({
           groupId,
-          name: row.name,
+          name: fullName,
           columnValues,
         });
         imported += 1;
@@ -146,7 +148,7 @@ export async function POST(request: Request) {
             : "יצירת פריט ב-Monday נכשלה.";
         errors.push({
           row: row.sheetRow,
-          name: row.name,
+          name: fullName,
           message,
         });
       }
