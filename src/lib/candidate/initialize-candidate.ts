@@ -1,6 +1,7 @@
 import { generateCandidateMagicToken } from "@/lib/candidate/token";
 import { mondayConfig } from "@/lib/env";
 import { mondayFetch } from "@/lib/monday/client";
+import { normalizeMondayPhone } from "@/lib/monday/phone";
 import {
   EXAM_STATUS,
   MONDAY_COLUMNS,
@@ -131,9 +132,10 @@ export async function initializeCandidateItem(
     [MONDAY_COLUMNS.examStatus]: { label: EXAM_STATUS.NOT_STARTED },
   };
 
-  if (phone) {
+  const normalizedPhone = normalizeMondayPhone(phone);
+  if (normalizedPhone) {
     columnValues[MONDAY_COLUMNS.phone] = {
-      phone,
+      phone: normalizedPhone,
       countryShortName: "IL",
     };
   }

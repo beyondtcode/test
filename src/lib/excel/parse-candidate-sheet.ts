@@ -61,12 +61,46 @@ const FIELD_LABELS_HE: Record<FieldKey, string> = {
   examName: "שם מבחן",
 };
 
+/** Default Monday item name when both name columns are empty after import sanitization. */
+export const IMPORT_NAME_FALLBACK = "מועמד ללא שם";
+
 /** Builds the single Monday item name from separate Excel name columns. */
 export function formatCandidateFullName(
   firstName: string,
   familyName: string
 ): string {
   return `${firstName.trim()} ${familyName.trim()}`.trim();
+}
+
+/** Monday item name with fallback when all name fields are empty. */
+export function formatImportItemName(
+  firstName: string,
+  familyName: string
+): string {
+  return formatCandidateFullName(firstName, familyName) || IMPORT_NAME_FALLBACK;
+}
+
+/** Returns a single valid email, or "" when missing, multi-value, or invalid. */
+export function sanitizeImportEmail(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return "";
+  }
+  if (/[;,]/.test(trimmed)) {
+    return "";
+  }
+  return EMAIL_RE.test(trimmed) ? trimmed : "";
+}
+
+/** Normalizes import row fields; missing/invalid values become empty strings. */
+export function sanitizeImportRow(row: ParsedCandidateRow): ParsedCandidateRow {
+  return {
+    ...row,
+    firstName: row.firstName.trim(),
+    familyName: row.familyName.trim(),
+    email: sanitizeImportEmail(row.email),
+    examName: row.examName.trim(),
+  };
 }
 
 function normalizeHeader(value: unknown): string {
@@ -112,31 +146,6 @@ function isBlankDataRow(row: unknown[]): boolean {
   return row.every(
     (cell) => cell === null || cell === undefined || String(cell).trim() === ""
   );
-}
-
-export function validateParsedRow(row: {
-  firstName: string;
-  familyName: string;
-  email: string;
-  examName: string;
-  sheetRow: number;
-}): string | null {
-  if (!row.firstName) {
-    return "חסר שם פרטי.";
-  }
-  if (!row.familyName) {
-    return "חסר שם משפחה.";
-  }
-  if (!row.email) {
-    return "חסר אימייל.";
-  }
-  if (!EMAIL_RE.test(row.email)) {
-    return `האימייל "${row.email}" אינו תקין.`;
-  }
-  if (!row.examName) {
-    return "חסר שם מבחן.";
-  }
-  return null;
 }
 
 export class ParseCandidateSheetError extends Error {

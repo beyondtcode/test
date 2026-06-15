@@ -2,10 +2,10 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { generateCandidateMagicToken } from "@/lib/candidate/token";
 import {
-  formatCandidateFullName,
+  formatImportItemName,
   parseCandidateSheet,
   ParseCandidateSheetError,
-  validateParsedRow,
+  sanitizeImportRow,
 } from "@/lib/excel/parse-candidate-sheet";
 import { getRequestOrigin } from "@/lib/app-url";
 import {
@@ -120,24 +120,16 @@ export async function POST(request: Request) {
     const errors: ImportRowError[] = [];
     let imported = 0;
 
-    for (const row of parsed.rows) {
-      const fullName = formatCandidateFullName(row.firstName, row.familyName);
-      const validationError = validateParsedRow(row);
-      if (validationError) {
-        errors.push({
-          row: row.sheetRow,
-          name: fullName || undefined,
-          message: validationError,
-        });
-        continue;
-      }
+    for (const rawRow of parsed.rows) {
+      const row = sanitizeImportRow(rawRow);
+      const itemName = formatImportItemName(row.firstName, row.familyName);
 
       try {
         const token = generateCandidateMagicToken();
         const columnValues = buildImportColumnValues(row, token);
         await createCandidateItemInGroup({
           groupId,
-          name: fullName,
+          name: itemName,
           columnValues,
         });
         imported += 1;
@@ -148,7 +140,7 @@ export async function POST(request: Request) {
             : "יצירת פריט ב-Monday נכשלה.";
         errors.push({
           row: row.sheetRow,
-          name: fullName,
+          name: itemName,
           message,
         });
       }

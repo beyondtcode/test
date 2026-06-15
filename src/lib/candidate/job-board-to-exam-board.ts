@@ -1,5 +1,6 @@
 import { mondayConfig } from "@/lib/env";
 import { mondayFetch } from "@/lib/monday/client";
+import { normalizeMondayPhone } from "@/lib/monday/phone";
 import { JOB_BOARD_COLUMNS, MONDAY_COLUMNS } from "@/lib/monday/columns";
 import type {
   ChangeMultipleColumnValuesData,
@@ -167,7 +168,7 @@ export async function createExamBoardCandidateItem(contact: {
     },
   };
 
-  const phone = contact.phone?.trim();
+  const phone = contact.phone ? normalizeMondayPhone(contact.phone) : "";
   if (phone) {
     columnValues[MONDAY_COLUMNS.phone] = {
       phone,

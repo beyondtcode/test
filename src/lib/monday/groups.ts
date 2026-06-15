@@ -1,5 +1,6 @@
 import { mondayConfig } from "@/lib/env";
 import { updateCandidateScheduledAt } from "./client";
+import { normalizeMondayPhone } from "./phone";
 import {
   EXAM_STATUS,
   MONDAY_COLUMNS,
@@ -81,22 +82,30 @@ export function buildImportColumnValues(
   token: string
 ): Record<string, unknown> {
   const values: Record<string, unknown> = {
-    [MONDAY_COLUMNS.email]: {
-      email: row.email,
-      text: row.email,
-    },
     [MONDAY_COLUMNS.teamEmail]: {
       email: MONDAY_TEAM_EMAIL,
       text: MONDAY_TEAM_EMAIL,
-    },
-    [MONDAY_COLUMNS.examType]: {
-      label: row.examName.trim(),
     },
     [MONDAY_COLUMNS.magicLinkToken]: token,
     [MONDAY_COLUMNS.examStatus]: { label: EXAM_STATUS.NOT_STARTED },
   };
 
-  const phone = row.phone.trim();
+  const examName = row.examName.trim();
+  if (examName) {
+    values[MONDAY_COLUMNS.examType] = {
+      label: examName,
+    };
+  }
+
+  const email = row.email.trim();
+  if (email) {
+    values[MONDAY_COLUMNS.email] = {
+      email,
+      text: email,
+    };
+  }
+
+  const phone = normalizeMondayPhone(row.phone);
   if (phone) {
     values[MONDAY_COLUMNS.phone] = {
       phone,
