@@ -15,6 +15,11 @@ import {
   groupNameFromFilename,
 } from "@/lib/monday/groups";
 import {
+  DEFAULT_CANDIDATE_TRACK,
+  isCandidateTrack,
+  type CandidateTrack,
+} from "@/lib/monday";
+import {
   ADMIN_SESSION_COOKIE_NAME,
   verifyAdminSessionCookieValue,
 } from "@/lib/admin/session";
@@ -68,6 +73,7 @@ export async function POST(request: Request) {
 
     const formData = await request.formData();
     const fileEntry = formData.get("file");
+    const candidateTrackRaw = formData.get("candidateTrack");
 
     if (!fileEntry || typeof fileEntry === "string") {
       return NextResponse.json(
@@ -77,6 +83,20 @@ export async function POST(request: Request) {
     }
 
     const file = fileEntry as File;
+
+    const candidateTrackValue =
+      typeof candidateTrackRaw === "string" && candidateTrackRaw.trim()
+        ? candidateTrackRaw.trim()
+        : DEFAULT_CANDIDATE_TRACK;
+
+    if (!isCandidateTrack(candidateTrackValue)) {
+      return NextResponse.json(
+        { error: "מסלול הנבחן שנבחר אינו תקין." },
+        { status: 400 }
+      );
+    }
+
+    const candidateTrack = candidateTrackValue as CandidateTrack;
 
     if (!hasAllowedExtension(file.name)) {
       return NextResponse.json(
@@ -126,7 +146,7 @@ export async function POST(request: Request) {
 
       try {
         const token = generateCandidateMagicToken();
-        const columnValues = buildImportColumnValues(row, token);
+        const columnValues = buildImportColumnValues(row, token, candidateTrack);
         await createCandidateItemInGroup({
           groupId,
           name: itemName,

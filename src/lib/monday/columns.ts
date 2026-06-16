@@ -36,7 +36,28 @@ export const MONDAY_COLUMNS = {
   phone: "phone_mm40xg8n",
   /** Notes / הערות (text) */
   notes: "text_mm40g870",
+  /** Candidate track (status/color): רגיל, ג'וניור */
+  candidateTrack: "color_mm4cdx81",
 } as const;
+
+export const CANDIDATE_TRACK = {
+  REGULAR: "רגיל",
+  JUNIOR: "ג'וניור",
+} as const;
+
+export type CandidateTrack =
+  (typeof CANDIDATE_TRACK)[keyof typeof CANDIDATE_TRACK];
+
+export const CANDIDATE_TRACK_OPTIONS: readonly CandidateTrack[] = [
+  CANDIDATE_TRACK.REGULAR,
+  CANDIDATE_TRACK.JUNIOR,
+];
+
+export const DEFAULT_CANDIDATE_TRACK: CandidateTrack = CANDIDATE_TRACK.REGULAR;
+
+export function isCandidateTrack(value: string): value is CandidateTrack {
+  return (CANDIDATE_TRACK_OPTIONS as readonly string[]).includes(value);
+}
 
 /** Columns on template Job Boards (shared across dynamically created boards). */
 export const JOB_BOARD_COLUMNS = {

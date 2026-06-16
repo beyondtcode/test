@@ -21,11 +21,16 @@ export {
   MONDAY_PLACEHOLDER_SCHEDULED_DATE,
   EXAM_STATUS,
   CONFIRM_STATUS,
+  CANDIDATE_TRACK,
+  CANDIDATE_TRACK_OPTIONS,
+  DEFAULT_CANDIDATE_TRACK,
+  isCandidateTrack,
   EXAM_PASSING_SCORE,
   PASS_RESULT,
   passResultLabelFromScore,
   passResultLabelFromSubmission,
 } from "./columns";
+export type { CandidateTrack } from "./columns";
 export {
   EXAM_TYPE_IDS,
   EXAM_TYPE_LABELS,

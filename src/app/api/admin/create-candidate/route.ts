@@ -11,10 +11,12 @@ import {
 import {
   mondayFetch,
   EXAM_STATUS,
+  isCandidateTrack,
   MONDAY_COLUMNS,
   MONDAY_PLACEHOLDER_SCHEDULED_DATE,
   MONDAY_TEAM_EMAIL,
   updateCandidateScheduledAt,
+  type CandidateTrack,
 } from "@/lib/monday";
 import { buildExamMagicLink, getRequestOrigin } from "@/lib/app-url";
 import { mondayConfig } from "@/lib/env";
@@ -63,6 +65,7 @@ export async function POST(request: Request) {
       email?: unknown;
       examTypeId?: unknown;
       candidateSource?: unknown;
+      candidateTrack?: unknown;
       scheduledAt?: unknown;
     };
 
@@ -73,17 +76,37 @@ export async function POST(request: Request) {
       body.candidateSource,
       "candidateSource"
     );
+    const candidateTrackRaw = parseNonEmptyString(
+      body.candidateTrack,
+      "candidateTrack"
+    );
     const scheduledAt = parseScheduledAt(body.scheduledAt);
 
-    if (!name || !email || !examTypeRaw || !candidateSource || !scheduledAt) {
+    if (
+      !name ||
+      !email ||
+      !examTypeRaw ||
+      !candidateSource ||
+      !candidateTrackRaw ||
+      !scheduledAt
+    ) {
       return NextResponse.json(
         {
           error:
-            "יש להזין שם, אימייל, סוג מבחן, מקור מועמדת ותאריך/שעה מתוכננים.",
+            "יש להזין שם, אימייל, סוג מבחן, מקור מועמדת, מסלול נבחן ותאריך/שעה מתוכננים.",
         },
         { status: 400 }
       );
     }
+
+    if (!isCandidateTrack(candidateTrackRaw)) {
+      return NextResponse.json(
+        { error: "מסלול הנבחן שנבחר אינו תקין." },
+        { status: 400 }
+      );
+    }
+
+    const candidateTrack = candidateTrackRaw as CandidateTrack;
 
     if (!isExamTypeId(examTypeRaw)) {
       return NextResponse.json(
@@ -119,6 +142,7 @@ export async function POST(request: Request) {
       [MONDAY_COLUMNS.scheduledAt]: MONDAY_PLACEHOLDER_SCHEDULED_DATE,
       [MONDAY_COLUMNS.magicLinkToken]: token,
       [MONDAY_COLUMNS.examStatus]: { label: EXAM_STATUS.NOT_STARTED },
+      [MONDAY_COLUMNS.candidateTrack]: { label: candidateTrack },
     });
 
     const query = `

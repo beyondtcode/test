@@ -5,6 +5,7 @@ import {
   EXAM_STATUS,
   MONDAY_COLUMNS,
   MONDAY_TEAM_EMAIL,
+  type CandidateTrack,
 } from "./columns";
 import { mondayFetch } from "./client";
 import { scheduleExamInviteAlarm } from "@/lib/qstash/schedule-exam-invite";
@@ -79,7 +80,8 @@ export function buildImportColumnValues(
     ParsedCandidateRow,
     "email" | "phone" | "seminary" | "notes" | "examName"
   >,
-  token: string
+  token: string,
+  candidateTrack: CandidateTrack
 ): Record<string, unknown> {
   const values: Record<string, unknown> = {
     [MONDAY_COLUMNS.teamEmail]: {
@@ -88,6 +90,7 @@ export function buildImportColumnValues(
     },
     [MONDAY_COLUMNS.magicLinkToken]: token,
     [MONDAY_COLUMNS.examStatus]: { label: EXAM_STATUS.NOT_STARTED },
+    [MONDAY_COLUMNS.candidateTrack]: { label: candidateTrack },
   };
 
   const examName = row.examName.trim();

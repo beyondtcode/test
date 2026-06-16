@@ -7,6 +7,11 @@ import {
   EXAM_TYPE_LABELS,
   type ExamTypeId,
 } from "@/lib/exam/exam-types";
+import {
+  CANDIDATE_TRACK_OPTIONS,
+  DEFAULT_CANDIDATE_TRACK,
+  type CandidateTrack,
+} from "@/lib/monday";
 
 type CreateCandidateResponse =
   | { link: string; token: string; error?: undefined }
@@ -34,6 +39,9 @@ export function AdminCreateCandidateForm() {
     CANDIDATE_SOURCE_OPTIONS[0]
   );
   const [customSource, setCustomSource] = useState("");
+  const [candidateTrack, setCandidateTrack] = useState<CandidateTrack>(
+    DEFAULT_CANDIDATE_TRACK
+  );
   const [scheduledAt, setScheduledAt] = useState(defaultScheduledLocalValue);
 
   const [submitting, setSubmitting] = useState(false);
@@ -74,6 +82,7 @@ export function AdminCreateCandidateForm() {
           email,
           examTypeId,
           candidateSource: resolvedSource,
+          candidateTrack,
           scheduledAt: new Date(scheduledAt).toISOString(),
         }),
       });
@@ -91,6 +100,7 @@ export function AdminCreateCandidateForm() {
         setExamTypeId("exam-a");
         setCandidateSource(CANDIDATE_SOURCE_OPTIONS[0]);
         setCustomSource("");
+        setCandidateTrack(DEFAULT_CANDIDATE_TRACK);
         setScheduledAt(defaultScheduledLocalValue());
       } else {
         setError("לא התקבל קישור לאחר יצירת מועמדת.");
@@ -196,6 +206,25 @@ export function AdminCreateCandidateForm() {
             </select>
           </label>
         </div>
+
+        <label className="block">
+          <span className="text-sm font-medium text-slate-800">
+            מסלול נבחן <span className="text-red-600">*</span>
+          </span>
+          <select
+            value={candidateTrack}
+            onChange={(e) => setCandidateTrack(e.target.value as CandidateTrack)}
+            disabled={submitting}
+            required
+            className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-slate-900 shadow-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+          >
+            {CANDIDATE_TRACK_OPTIONS.map((track) => (
+              <option key={track} value={track}>
+                {track}
+              </option>
+            ))}
+          </select>
+        </label>
 
         {candidateSource === "אחר" && (
           <label className="block">

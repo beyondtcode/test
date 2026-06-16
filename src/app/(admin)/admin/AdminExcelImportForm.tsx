@@ -1,6 +1,11 @@
 "use client";
 
 import { useCallback, useRef, useState, type DragEvent } from "react";
+import {
+  CANDIDATE_TRACK_OPTIONS,
+  DEFAULT_CANDIDATE_TRACK,
+  type CandidateTrack,
+} from "@/lib/monday";
 import { rememberImportedGroupForSchedule } from "./AdminBulkScheduleForm";
 
 type ImportRowError = {
@@ -29,6 +34,9 @@ export function AdminExcelImportForm() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [candidateTrack, setCandidateTrack] = useState<CandidateTrack>(
+    DEFAULT_CANDIDATE_TRACK
+  );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ImportSuccessResponse | null>(null);
@@ -84,6 +92,7 @@ export function AdminExcelImportForm() {
     try {
       const formData = new FormData();
       formData.append("file", file);
+      formData.append("candidateTrack", candidateTrack);
 
       const res = await fetch("/api/admin/import-excel", {
         method: "POST",
@@ -135,6 +144,25 @@ export function AdminExcelImportForm() {
         לשם פריט אחד ב-Monday (למשל: רחל כהן). המועמדות ייווצרו בקבוצה חדשה לפי
         שם הקובץ, ללא תאריך מבחן וללא שליחת מיילים.
       </p>
+
+      <label className="mt-6 block">
+        <span className="text-sm font-medium text-slate-800">
+          מסלול נבחן <span className="text-red-600">*</span>
+        </span>
+        <select
+          value={candidateTrack}
+          onChange={(e) => setCandidateTrack(e.target.value as CandidateTrack)}
+          disabled={submitting}
+          required
+          className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-slate-900 shadow-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+        >
+          {CANDIDATE_TRACK_OPTIONS.map((track) => (
+            <option key={track} value={track}>
+              {track}
+            </option>
+          ))}
+        </select>
+      </label>
 
       <div
         role="button"
