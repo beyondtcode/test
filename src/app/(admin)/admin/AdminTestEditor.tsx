@@ -6,6 +6,16 @@ import {
   EXAM_TYPE_LABELS,
   type ExamTypeId,
 } from "@/lib/exam/exam-types";
+import {
+  AdminAlert,
+  AdminButton,
+  AdminCard,
+  AdminInput,
+  AdminLabel,
+  AdminSectionHeader,
+  AdminTextarea,
+  IconEdit,
+} from "@/components/admin/AdminUI";
 
 type EditableQuestion = {
   id: string;
@@ -216,26 +226,25 @@ export function AdminTestEditor() {
   }
 
   return (
-    <div className="mx-auto mt-6 w-full max-w-3xl rounded-2xl border border-slate-200/80 bg-white/70 p-6 shadow-sm backdrop-blur">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-2xl font-semibold text-slate-900">עריכת מבחנים</h2>
-          <p className="mt-2 text-sm leading-relaxed text-slate-600">
-            בחרי סוג מבחן וערכי שאלות, אפשרויות ותשובות נכונות.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => void loadExam(selectedExamTypeId)}
-          disabled={loading || saving}
-          className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {loading ? "טוענת…" : loaded ? "רענון מבחן" : "טעינת מבחן"}
-        </button>
-      </div>
+    <AdminCard>
+      <AdminSectionHeader
+        icon={<IconEdit />}
+        title="עריכת מבחנים"
+        description="בחרי סוג מבחן וערכי שאלות, אפשרויות ותשובות נכונות."
+        action={
+          <AdminButton
+            variant="secondary"
+            size="sm"
+            onClick={() => void loadExam(selectedExamTypeId)}
+            disabled={loading || saving}
+          >
+            {loading ? "טוענת…" : loaded ? "רענון" : "טעינת מבחן"}
+          </AdminButton>
+        }
+      />
 
       <div
-        className="mt-4 flex flex-wrap gap-2"
+        className="flex flex-wrap gap-2"
         role="tablist"
         aria-label="סוגי מבחן"
       >
@@ -247,10 +256,10 @@ export function AdminTestEditor() {
             aria-selected={selectedExamTypeId === examTypeId}
             onClick={() => switchExamType(examTypeId)}
             disabled={loading || saving}
-            className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
+            className={`rounded-2xl px-4 py-2.5 text-sm font-bold transition ${
               selectedExamTypeId === examTypeId
-                ? "bg-indigo-600 text-white shadow-md shadow-indigo-200/60"
-                : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                ? "bg-gradient-to-l from-brand-600 to-violet-600 text-white shadow-md shadow-brand-300/40"
+                : "border border-slate-200 bg-white text-slate-700 hover:border-brand-200 hover:bg-brand-50/50"
             } disabled:cursor-not-allowed disabled:opacity-60`}
           >
             {EXAM_TYPE_LABELS[examTypeId]}
@@ -259,31 +268,30 @@ export function AdminTestEditor() {
       </div>
 
       {!loaded ? (
-        <p className="mt-5 text-sm text-slate-600">
-          לחצי על &quot;טעינת מבחן&quot; כדי להתחיל לערוך את{" "}
-          {EXAM_TYPE_LABELS[selectedExamTypeId]}.
-        </p>
+        <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50/50 px-6 py-10 text-center">
+          <p className="text-sm text-slate-600">
+            לחצי על &quot;טעינת מבחן&quot; כדי להתחיל לערוך את{" "}
+            <strong>{EXAM_TYPE_LABELS[selectedExamTypeId]}</strong>
+          </p>
+        </div>
       ) : (
         <form className="mt-6 space-y-6" onSubmit={onSave}>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-5 sm:grid-cols-2">
             <label className="block">
-              <span className="text-sm font-medium text-slate-800">שם המבחן</span>
-              <input
+              <AdminLabel>שם המבחן</AdminLabel>
+              <AdminInput
                 type="text"
                 value={exam.title}
                 onChange={(e) =>
                   setExam((prev) => ({ ...prev, title: e.target.value }))
                 }
                 disabled={saving}
-                className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-slate-900 shadow-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:cursor-not-allowed disabled:bg-slate-50"
               />
             </label>
 
             <label className="block">
-              <span className="text-sm font-medium text-slate-800">
-                משך מבחן (דקות)
-              </span>
-              <input
+              <AdminLabel>משך מבחן (דקות)</AdminLabel>
+              <AdminInput
                 type="number"
                 min={5}
                 max={180}
@@ -295,7 +303,6 @@ export function AdminTestEditor() {
                   }))
                 }
                 disabled={saving}
-                className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-slate-900 shadow-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:cursor-not-allowed disabled:bg-slate-50"
               />
             </label>
           </div>
@@ -304,38 +311,49 @@ export function AdminTestEditor() {
             {exam.questions.map((question, questionIndex) => (
               <div
                 key={question.id}
-                className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4"
+                className="rounded-2xl border border-slate-200/80 bg-slate-50/60 p-5"
               >
-                <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                  <h3 className="text-base font-semibold text-slate-900">
-                    שאלה {questionIndex + 1}
-                  </h3>
-                  <button
-                    type="button"
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-violet-600 text-sm font-bold text-white">
+                      {questionIndex + 1}
+                    </span>
+                    <h3 className="text-base font-bold text-slate-900">
+                      שאלה {questionIndex + 1}
+                    </h3>
+                  </div>
+                  <AdminButton
+                    variant="danger"
+                    size="sm"
                     onClick={() => removeQuestion(questionIndex)}
                     disabled={saving || exam.questions.length <= 1}
-                    className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    מחיקת שאלה
-                  </button>
+                    מחיקה
+                  </AdminButton>
                 </div>
 
                 <label className="block">
-                  <span className="text-sm font-medium text-slate-700">נוסח שאלה</span>
-                  <textarea
+                  <AdminLabel>נוסח שאלה</AdminLabel>
+                  <AdminTextarea
                     value={question.prompt}
                     onChange={(e) => setQuestionPrompt(questionIndex, e.target.value)}
                     disabled={saving}
                     rows={2}
-                    className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-slate-900 shadow-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:cursor-not-allowed disabled:bg-slate-50"
                   />
                 </label>
 
                 <div className="mt-4 space-y-2">
+                  <p className="text-xs font-semibold text-slate-500">
+                    סמני את התשובה הנכונה
+                  </p>
                   {question.options.map((option, optionIndex) => (
                     <div
                       key={`${question.id}-option-${optionIndex}`}
-                      className="flex flex-wrap items-center gap-2"
+                      className={`flex flex-wrap items-center gap-2 rounded-2xl border p-2 transition ${
+                        question.correctIndex === optionIndex
+                          ? "border-emerald-300 bg-emerald-50/60"
+                          : "border-transparent bg-white"
+                      }`}
                     >
                       <input
                         type="radio"
@@ -343,80 +361,75 @@ export function AdminTestEditor() {
                         checked={question.correctIndex === optionIndex}
                         onChange={() => setCorrectAnswer(questionIndex, optionIndex)}
                         disabled={saving}
-                        className="h-4 w-4 accent-indigo-600"
+                        className="h-4 w-4 accent-emerald-600"
                         title="סימון כתשובה נכונה"
                       />
-                      <input
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs font-bold text-slate-600">
+                        {String.fromCharCode(1488 + optionIndex)}
+                      </span>
+                      <AdminInput
                         type="text"
                         value={option}
                         onChange={(e) =>
                           setOptionValue(questionIndex, optionIndex, e.target.value)
                         }
                         disabled={saving}
-                        className="min-w-[16rem] flex-1 rounded-xl border border-slate-300 bg-white px-4 py-2 text-slate-900 shadow-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:cursor-not-allowed disabled:bg-slate-50"
                         placeholder={`אפשרות ${optionIndex + 1}`}
+                        className="mt-0 min-w-[12rem] flex-1"
                       />
-                      <button
-                        type="button"
+                      <AdminButton
+                        variant="ghost"
+                        size="sm"
                         onClick={() => removeOption(questionIndex, optionIndex)}
                         disabled={saving || question.options.length <= 2}
-                        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         הסרה
-                      </button>
+                      </AdminButton>
                     </div>
                   ))}
                 </div>
 
-                <button
-                  type="button"
+                <AdminButton
+                  variant="ghost"
+                  size="sm"
                   onClick={() => addOption(questionIndex)}
                   disabled={saving}
-                  className="mt-3 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="mt-3"
                 >
-                  הוספת אפשרות
-                </button>
+                  + הוספת אפשרות
+                </AdminButton>
               </div>
             ))}
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              type="button"
+          <div className="flex flex-wrap items-center gap-3 border-t border-slate-200 pt-5">
+            <AdminButton
+              variant="ghost"
               onClick={addQuestion}
               disabled={saving}
-              className="rounded-xl border border-indigo-200 bg-white px-4 py-2.5 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              הוספת שאלה
-            </button>
-            <button
-              type="submit"
-              disabled={!canSave}
-              className="rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-200/60 transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
-            >
+              + הוספת שאלה
+            </AdminButton>
+            <AdminButton type="submit" disabled={!canSave}>
               {saving ? "שומרת…" : "שמירת מבחן"}
-            </button>
+            </AdminButton>
           </div>
         </form>
       )}
 
       {error && (
-        <p
-          className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
-          role="alert"
-        >
-          {error}
-        </p>
+        <div className="mt-5">
+          <AdminAlert variant="error">{error}</AdminAlert>
+        </div>
       )}
 
       {saveMessage && (
-        <p
-          className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700"
-          role="status"
-        >
-          {saveMessage}
-        </p>
+        <div className="mt-5">
+          <AdminAlert variant="success" role="status">
+            {saveMessage}
+          </AdminAlert>
+        </div>
       )}
-    </div>
+    </AdminCard>
   );
 }

@@ -9,7 +9,6 @@ import {
   type ExamTypeId,
 } from "@/lib/exam/exam-types";
 import {
-  mondayFetch,
   EXAM_STATUS,
   isCandidateTrack,
   MONDAY_COLUMNS,
@@ -17,8 +16,11 @@ import {
   type CandidateTrack,
 } from "@/lib/monday";
 import { formatMondayDateTime } from "@/lib/monday/datetime";
+import {
+  createCandidateItemInGroup,
+  getPrivateCandidatesGroupId,
+} from "@/lib/monday/groups";
 import { buildExamMagicLink, getRequestOrigin } from "@/lib/app-url";
-import { mondayConfig } from "@/lib/env";
 import { scheduleExamInviteAlarm } from "@/lib/qstash/schedule-exam-invite";
 import {
   ADMIN_SESSION_COOKIE_NAME,
@@ -126,7 +128,7 @@ export async function POST(request: Request) {
     const token = generateCandidateMagicToken();
     const { date, time } = formatMondayDateTime(scheduledAt);
 
-    const columnValues = JSON.stringify({
+    const columnValues = {
       [MONDAY_COLUMNS.email]: {
         email,
         text: email,
@@ -143,37 +145,20 @@ export async function POST(request: Request) {
       [MONDAY_COLUMNS.magicLinkToken]: token,
       [MONDAY_COLUMNS.examStatus]: { label: EXAM_STATUS.NOT_STARTED },
       [MONDAY_COLUMNS.candidateTrack]: { label: candidateTrack },
-    });
+    };
 
-    const query = `
-      mutation CreateCandidate($boardId: ID!, $itemName: String!, $columnValues: JSON!) {
-        create_item(
-          board_id: $boardId
-          item_name: $itemName
-          column_values: $columnValues
-          create_labels_if_missing: true
-        ) {
-          id
-        }
-      }
-    `;
-
-    const { create_item: createdItem } = await mondayFetch<{
-      create_item: { id: string };
-    }>({
-      query,
-      variables: {
-        boardId: mondayConfig.boardId,
-        itemName: name,
-        columnValues,
-      },
+    const groupId = await getPrivateCandidatesGroupId();
+    const createdItemId = await createCandidateItemInGroup({
+      groupId,
+      name,
+      columnValues,
     });
 
     try {
-      await scheduleExamInviteAlarm(createdItem.id, scheduledAt);
+      await scheduleExamInviteAlarm(createdItemId, scheduledAt);
     } catch (scheduleError) {
       console.error(
-        `[api/admin/create-candidate] QStash schedule failed for item ${createdItem.id}:`,
+        `[api/admin/create-candidate] QStash schedule failed for item ${createdItemId}:`,
         scheduleError
       );
     }

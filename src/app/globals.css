@@ -44,3 +44,22 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@keyframes exam-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.exam-animate-in {
+  animation: exam-fade-up 0.45s ease-out both;
+}
+
+.exam-stagger-1 { animation-delay: 0.05s; }
+.exam-stagger-2 { animation-delay: 0.1s; }
+.exam-stagger-3 { animation-delay: 0.15s; }

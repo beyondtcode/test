@@ -11,6 +11,8 @@ import { mondayFetch } from "./client";
 import { scheduleExamInviteAlarm } from "@/lib/qstash/schedule-exam-invite";
 import type { ParsedCandidateRow } from "@/lib/excel/parse-candidate-sheet";
 
+export const PRIVATE_CANDIDATES_GROUP_TITLE = "מועמדים פרטיים";
+
 export type MondayGroupSummary = {
   id: string;
   title: string;
@@ -46,6 +48,15 @@ type GroupItemsQueryData = {
   }>;
 };
 
+type BoardGroupTitlesQueryData = {
+  boards: Array<{
+    groups: Array<{
+      id: string;
+      title: string;
+    }>;
+  }>;
+};
+
 export function groupNameFromFilename(filename: string): string {
   const base = filename.replace(/\.[^.]+$/i, "").trim();
   const sanitized = base
@@ -53,6 +64,39 @@ export function groupNameFromFilename(filename: string): string {
     .replace(/_+/g, "_")
     .replace(/^_|_$/g, "");
   return sanitized || "Import_Batch";
+}
+
+export async function getGroupIdByTitle(title: string): Promise<string> {
+  const data = await mondayFetch<BoardGroupTitlesQueryData>({
+    query: `
+      query ListBoardGroupTitles($boardId: [ID!]) {
+        boards(ids: $boardId) {
+          groups {
+            id
+            title
+          }
+        }
+      }
+    `,
+    variables: {
+      boardId: [mondayConfig.boardId],
+    },
+  });
+
+  const normalizedTitle = title.trim();
+  const match = data.boards[0]?.groups.find(
+    (group) => group.title.trim() === normalizedTitle
+  );
+
+  if (!match) {
+    throw new Error(`Monday group not found: ${title}`);
+  }
+
+  return match.id;
+}
+
+export async function getPrivateCandidatesGroupId(): Promise<string> {
+  return getGroupIdByTitle(PRIVATE_CANDIDATES_GROUP_TITLE);
 }
 
 export async function createMondayGroup(groupName: string): Promise<string> {

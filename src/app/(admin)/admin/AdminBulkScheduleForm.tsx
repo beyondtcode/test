@@ -1,6 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import {
+  AdminAlert,
+  AdminButton,
+  AdminCard,
+  AdminInput,
+  AdminLabel,
+  AdminSectionHeader,
+  AdminSelect,
+  IconCalendar,
+} from "@/components/admin/AdminUI";
 
 type MondayGroup = {
   id: string;
@@ -127,24 +137,30 @@ export function AdminBulkScheduleForm() {
   }
 
   return (
-    <div className="mx-auto mt-8 w-full max-w-3xl rounded-2xl border border-slate-200/80 bg-white/70 p-6 shadow-sm backdrop-blur">
-      <h2 className="text-2xl font-semibold text-slate-900">
-        קביעת תאריך מבחן לקבוצה
-      </h2>
-      <p className="mt-2 text-sm leading-relaxed text-slate-600">
-        בחרי קבוצה מ-Monday (למשל קבוצת ייבוא Excel) והגדירי תאריך ושעה אחידים.
-        התאריך יעודכן לכל המועמדות בקבוצה, כולל תזמון התראת QStash לשליחת
-        המבחן.
-      </p>
+    <AdminCard>
+      <AdminSectionHeader
+        icon={<IconCalendar />}
+        title="קביעת תאריך מבחן לקבוצה"
+        description="בחרי קבוצה מ-Monday והגדירי תאריך ושעה אחידים. התאריך יעודכן לכל המועמדות בקבוצה, כולל תזמון שליחת המבחן."
+        action={
+          <AdminButton
+            variant="secondary"
+            size="sm"
+            onClick={() => void loadGroups()}
+            disabled={loadingGroups || submitting}
+          >
+            {loadingGroups ? "טוען…" : "רענון"}
+          </AdminButton>
+        }
+      />
 
-      <form className="mt-6 space-y-4" onSubmit={onSubmit}>
+      <form className="space-y-5" onSubmit={onSubmit}>
         <label className="block">
-          <span className="text-sm font-medium text-slate-800">קבוצה ב-Monday</span>
-          <select
+          <AdminLabel>קבוצה ב-Monday</AdminLabel>
+          <AdminSelect
             value={groupId}
             onChange={(e) => setGroupId(e.target.value)}
             disabled={loadingGroups || submitting || groups.length === 0}
-            className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-slate-900 shadow-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:cursor-not-allowed disabled:bg-slate-50"
           >
             {loadingGroups && <option value="">טוען קבוצות…</option>}
             {!loadingGroups && groups.length === 0 && (
@@ -155,76 +171,51 @@ export function AdminBulkScheduleForm() {
                 {group.title} ({group.itemCount} מועמדות)
               </option>
             ))}
-          </select>
+          </AdminSelect>
         </label>
 
         <label className="block">
-          <span className="text-sm font-medium text-slate-800">
-            תאריך ושעת מבחן
-          </span>
-          <input
+          <AdminLabel required>תאריך ושעת מבחן</AdminLabel>
+          <AdminInput
             type="datetime-local"
             value={scheduledAt}
             onChange={(e) => setScheduledAt(e.target.value)}
             disabled={submitting}
             required
-            className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-slate-900 shadow-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:cursor-not-allowed disabled:bg-slate-50"
           />
         </label>
 
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <button
-            type="submit"
-            disabled={!canSubmit}
-            className="flex-1 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-200/60 transition hover:bg-indigo-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-70"
-          >
-            {submitting ? "מעדכן…" : "עדכון תאריך לכל המועמדות בקבוצה"}
-          </button>
-          <button
-            type="button"
-            onClick={() => void loadGroups()}
-            disabled={loadingGroups || submitting}
-            className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-70"
-          >
-            רענון קבוצות
-          </button>
-        </div>
-
         {selectedGroup && !loadingGroups && (
-          <p className="text-xs text-slate-500">
-            יעודכנו עד {selectedGroup.itemCount} מועמדות בקבוצה «
-            {selectedGroup.title}».
-          </p>
+          <div className="rounded-2xl border border-brand-100 bg-brand-50/50 px-4 py-3 text-sm text-brand-900">
+            יעודכנו עד <strong>{selectedGroup.itemCount}</strong> מועמדות
+            בקבוצה «{selectedGroup.title}»
+          </div>
         )}
 
-        {error && (
-          <p
-            className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
-            role="alert"
-          >
-            {error}
-          </p>
-        )}
+        <AdminButton
+          type="submit"
+          disabled={!canSubmit}
+          className="w-full"
+          size="lg"
+        >
+          {submitting ? "מעדכן…" : "עדכון תאריך לכל המועמדות בקבוצה"}
+        </AdminButton>
+
+        {error && <AdminAlert variant="error">{error}</AdminAlert>}
       </form>
 
       {result && "updated" in result && (
-        <div className="mt-4 space-y-3">
+        <div className="mt-5 space-y-3">
           {result.updated > 0 && (
-            <p
-              className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
-              role="status"
-            >
+            <AdminAlert variant="success" role="status">
               עודכן תאריך המבחן ל-{result.updated} מועמדות בקבוצה «
               {result.groupTitle}».
-            </p>
+            </AdminAlert>
           )}
 
           {result.failed > 0 && (
-            <div
-              className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
-              role="alert"
-            >
-              <p className="font-medium">{result.failed} עדכונים נכשלו.</p>
+            <AdminAlert variant="warning">
+              <p className="font-semibold">{result.failed} עדכונים נכשלו.</p>
               <ul className="mt-2 max-h-48 list-inside list-disc space-y-1 overflow-y-auto text-xs">
                 {result.errors.map((err) => (
                   <li key={err.itemId}>
@@ -232,11 +223,11 @@ export function AdminBulkScheduleForm() {
                   </li>
                 ))}
               </ul>
-            </div>
+            </AdminAlert>
           )}
         </div>
       )}
-    </div>
+    </AdminCard>
   );
 }
 
