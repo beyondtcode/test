@@ -1,26 +1,28 @@
 const JERUSALEM_TZ = "Asia/Jerusalem";
 
-const JERUSALEM_PARTS_FORMATTER = new Intl.DateTimeFormat("en-CA", {
-  timeZone: JERUSALEM_TZ,
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  second: "2-digit",
-  hour12: false,
-});
+const pad2 = (n: number) => String(n).padStart(2, "0");
 
-/** Formats an instant as date/time for Monday columns (wall clock in Asia/Jerusalem). */
+/**
+ * Formats an instant for Monday date columns.
+ * Monday stores date/time in UTC and converts to the viewer's timezone in the UI.
+ */
 export function formatMondayDateTime(date: Date): { date: string; time: string } {
-  const parts = Object.fromEntries(
-    JERUSALEM_PARTS_FORMATTER.formatToParts(date).map((p) => [p.type, p.value])
-  ) as Record<string, string>;
-
   return {
-    date: `${parts.year}-${parts.month}-${parts.day}`,
-    time: `${parts.hour}:${parts.minute}:${parts.second}`,
+    date: `${date.getUTCFullYear()}-${pad2(date.getUTCMonth() + 1)}-${pad2(date.getUTCDate())}`,
+    time: `${pad2(date.getUTCHours())}:${pad2(date.getUTCMinutes())}:${pad2(date.getUTCSeconds())}`,
   };
+}
+
+/** Parses Monday date column raw values (stored in UTC) into an instant. */
+export function instantFromMondayDateColumn(
+  dateKey: string,
+  time: string
+): Date {
+  const timeMatch = time.trim().match(/^(\d{2}):(\d{2})(?::(\d{2}))?/);
+  const hh = timeMatch?.[1] ?? "00";
+  const mm = timeMatch?.[2] ?? "00";
+  const ss = timeMatch?.[3] ?? "00";
+  return new Date(`${dateKey}T${hh}:${mm}:${ss}Z`);
 }
 
 /** Converts a Jerusalem wall-clock date and HH:mm into a UTC instant. */

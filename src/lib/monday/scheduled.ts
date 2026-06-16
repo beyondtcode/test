@@ -7,7 +7,7 @@ import {
   MONDAY_PLACEHOLDER_SCHEDULED_DATE,
 } from "./columns";
 import { mondayFetch } from "./client";
-import { jerusalemWallClockToInstant } from "./datetime";
+import { instantFromMondayDateColumn } from "./datetime";
 import type {
   ChangeMultipleColumnValuesData,
   MondayColumnValue,
@@ -117,7 +117,7 @@ export async function getScheduledCandidateRow(
   return rowFromItem(item);
 }
 
-/** Interprets Monday date/time columns as an instant in Asia/Jerusalem. */
+/** Interprets Monday date/time column values (UTC storage) as an instant. */
 export function scheduledInstantFromRow(
   row: Pick<ScheduledCandidateRow, "scheduledDate" | "scheduledTime">
 ): Date | null {
@@ -125,10 +125,7 @@ export function scheduledInstantFromRow(
     return null;
   }
 
-  return jerusalemWallClockToInstant(
-    row.scheduledDate,
-    row.scheduledTime.slice(0, 5)
-  );
+  return instantFromMondayDateColumn(row.scheduledDate, row.scheduledTime);
 }
 
 export function isEligibleForExamInvite(row: ScheduledCandidateRow): boolean {

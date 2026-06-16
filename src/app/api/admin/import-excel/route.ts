@@ -13,6 +13,7 @@ import {
   createCandidateItemInGroup,
   createMondayGroup,
   groupNameFromFilename,
+  scheduleExamDateForGroup,
 } from "@/lib/monday/groups";
 import {
   DEFAULT_CANDIDATE_TRACK,
@@ -23,6 +24,7 @@ import {
   ADMIN_SESSION_COOKIE_NAME,
   verifyAdminSessionCookieValue,
 } from "@/lib/admin/session";
+import { parseScheduledAt } from "@/lib/api/scheduled-at";
 
 export const runtime = "nodejs";
 
@@ -74,6 +76,7 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     const fileEntry = formData.get("file");
     const candidateTrackRaw = formData.get("candidateTrack");
+    const scheduledAtRaw = formData.get("scheduledAt");
 
     if (!fileEntry || typeof fileEntry === "string") {
       return NextResponse.json(
@@ -97,6 +100,9 @@ export async function POST(request: Request) {
     }
 
     const candidateTrack = candidateTrackValue as CandidateTrack;
+    const scheduledAt = parseScheduledAt(
+      typeof scheduledAtRaw === "string" ? scheduledAtRaw : null
+    );
 
     if (!hasAllowedExtension(file.name)) {
       return NextResponse.json(
@@ -166,6 +172,12 @@ export async function POST(request: Request) {
       }
     }
 
+    let scheduleResult: Awaited<ReturnType<typeof scheduleExamDateForGroup>> | null =
+      null;
+    if (scheduledAt && imported > 0) {
+      scheduleResult = await scheduleExamDateForGroup(groupId, scheduledAt);
+    }
+
     return NextResponse.json({
       groupId,
       groupName,
@@ -173,6 +185,14 @@ export async function POST(request: Request) {
       failed: errors.length,
       totalRows: parsed.rows.length,
       errors,
+      ...(scheduledAt
+        ? {
+            scheduledAt: scheduledAt.toISOString(),
+            scheduleUpdated: scheduleResult?.updated ?? 0,
+            scheduleFailed: scheduleResult?.failed.length ?? 0,
+            scheduleErrors: scheduleResult?.failed ?? [],
+          }
+        : {}),
     });
   } catch (error) {
     console.error("[api/admin/import-excel]", error);
