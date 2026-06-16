@@ -6,6 +6,7 @@ import {
   MONDAY_COLUMNS,
   passResultLabelFromSubmission,
 } from "./columns";
+import { formatMondayDateTime } from "./datetime";
 import type { ConfirmStatus } from "./columns";
 import type {
   CandidateRecord,
@@ -67,13 +68,6 @@ export async function mondayFetch<T>({
   }
 
   return json.data;
-}
-
-function formatMondayDateTime(date: Date): { date: string; time: string } {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  const dateStr = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-  const timeStr = `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
-  return { date: dateStr, time: timeStr };
 }
 
 const GET_CANDIDATE_BY_TOKEN = `
@@ -279,15 +273,6 @@ export async function verifyCandidateToken(
   return candidate;
 }
 
-/**
- * Monday "When column changes" automations may not fire on a single write when the
- * column already holds a related value. A dummy write followed by the real value
- * forces a consecutive change event.
- */
-function scheduledAtDummyTriggerDate(): Date {
-  return new Date();
-}
-
 async function changeCandidateScheduledAtColumn(
   itemId: string,
   scheduledAt: Date
@@ -322,12 +307,10 @@ async function changeCandidateScheduledAtColumn(
   });
 }
 
-/** Sets the real scheduled exam date after create (placeholder was sent on create_item). */
 export async function updateCandidateScheduledAt(
   itemId: string,
   scheduledAt: Date
 ): Promise<void> {
-  await changeCandidateScheduledAtColumn(itemId, scheduledAtDummyTriggerDate());
   await changeCandidateScheduledAtColumn(itemId, scheduledAt);
 }
 
@@ -336,7 +319,6 @@ export async function confirmCandidateExamSchedule(
   itemId: string,
   scheduledAt: Date
 ): Promise<void> {
-  await changeCandidateScheduledAtColumn(itemId, scheduledAtDummyTriggerDate());
   const { date, time } = formatMondayDateTime(scheduledAt);
   const columnValues = JSON.stringify({
     [MONDAY_COLUMNS.scheduledAt]: { date, time },

@@ -1,3 +1,5 @@
+import { jerusalemWallClockToInstant } from "@/lib/monday/datetime";
+
 export const RESPOND_TIME_SLOTS = ["10:00", "17:00", "20:00"] as const;
 
 export type RespondTimeSlot = (typeof RESPOND_TIME_SLOTS)[number];
@@ -10,9 +12,7 @@ export function combineDateAndTime(
   dateKey: string,
   timeSlot: RespondTimeSlot
 ): Date {
-  const [hours, minutes] = timeSlot.split(":").map(Number);
-  const [year, month, day] = dateKey.split("-").map(Number);
-  return new Date(year, month - 1, day, hours, minutes, 0, 0);
+  return jerusalemWallClockToInstant(dateKey, timeSlot);
 }
 
 export function formatAdminScheduledDateLabel(dateKey: string): string {

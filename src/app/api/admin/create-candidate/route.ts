@@ -13,11 +13,10 @@ import {
   EXAM_STATUS,
   isCandidateTrack,
   MONDAY_COLUMNS,
-  MONDAY_PLACEHOLDER_SCHEDULED_DATE,
   MONDAY_TEAM_EMAIL,
-  updateCandidateScheduledAt,
   type CandidateTrack,
 } from "@/lib/monday";
+import { formatMondayDateTime } from "@/lib/monday/datetime";
 import { buildExamMagicLink, getRequestOrigin } from "@/lib/app-url";
 import { mondayConfig } from "@/lib/env";
 import { scheduleExamInviteAlarm } from "@/lib/qstash/schedule-exam-invite";
@@ -125,6 +124,7 @@ export async function POST(request: Request) {
     }
 
     const token = generateCandidateMagicToken();
+    const { date, time } = formatMondayDateTime(scheduledAt);
 
     const columnValues = JSON.stringify({
       [MONDAY_COLUMNS.email]: {
@@ -139,7 +139,7 @@ export async function POST(request: Request) {
         label: EXAM_TYPE_LABELS[examTypeId],
       },
       [MONDAY_COLUMNS.candidateSource]: candidateSource,
-      [MONDAY_COLUMNS.scheduledAt]: MONDAY_PLACEHOLDER_SCHEDULED_DATE,
+      [MONDAY_COLUMNS.scheduledAt]: { date, time },
       [MONDAY_COLUMNS.magicLinkToken]: token,
       [MONDAY_COLUMNS.examStatus]: { label: EXAM_STATUS.NOT_STARTED },
       [MONDAY_COLUMNS.candidateTrack]: { label: candidateTrack },
@@ -168,9 +168,6 @@ export async function POST(request: Request) {
         columnValues,
       },
     });
-
-    // Apply the real admin-entered date after create / send-details automation.
-    await updateCandidateScheduledAt(createdItem.id, scheduledAt);
 
     try {
       await scheduleExamInviteAlarm(createdItem.id, scheduledAt);

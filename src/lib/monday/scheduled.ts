@@ -7,6 +7,7 @@ import {
   MONDAY_PLACEHOLDER_SCHEDULED_DATE,
 } from "./columns";
 import { mondayFetch } from "./client";
+import { jerusalemWallClockToInstant } from "./datetime";
 import type {
   ChangeMultipleColumnValuesData,
   MondayColumnValue,
@@ -124,42 +125,10 @@ export function scheduledInstantFromRow(
     return null;
   }
 
-  const timeHm = row.scheduledTime.slice(0, 5);
-  const target = `${row.scheduledDate} ${timeHm}`;
-  const formatter = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Jerusalem",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-
-  let instant = Date.parse(`${row.scheduledDate}T${timeHm}:00Z`);
-  for (let attempt = 0; attempt < 4; attempt += 1) {
-    const parts = Object.fromEntries(
-      formatter.formatToParts(new Date(instant)).map((p) => [p.type, p.value])
-    ) as Record<string, string>;
-    const shown = `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}`;
-    if (shown === target) {
-      return new Date(instant);
-    }
-
-    const [y, m, d] = row.scheduledDate.split("-").map(Number);
-    const [hh, mm] = timeHm.split(":").map(Number);
-    const shownDate = new Date(
-      Number(parts.year),
-      Number(parts.month) - 1,
-      Number(parts.day),
-      Number(parts.hour),
-      Number(parts.minute)
-    );
-    const targetDate = new Date(y, m - 1, d, hh, mm);
-    instant += targetDate.getTime() - shownDate.getTime();
-  }
-
-  return new Date(instant);
+  return jerusalemWallClockToInstant(
+    row.scheduledDate,
+    row.scheduledTime.slice(0, 5)
+  );
 }
 
 export function isEligibleForExamInvite(row: ScheduledCandidateRow): boolean {
