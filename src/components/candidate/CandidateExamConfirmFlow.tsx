@@ -256,12 +256,6 @@ export function CandidateExamConfirmFlow() {
             <h1 className="text-2xl font-bold leading-snug text-slate-900 sm:text-3xl">
               אישור הגעה למבחן
             </h1>
-            <p className="mt-2 text-lg text-slate-600">
-              <span dir="ltr" className="inline-flex items-baseline gap-1 font-semibold">
-                <span className="text-brand-600">[beyond]</span>
-                <span className="text-slate-800">code</span>
-              </span>
-            </p>
           </div>
 
           <div className="space-y-8">

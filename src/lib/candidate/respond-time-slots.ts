@@ -27,7 +27,7 @@ export function formatAdminScheduledDateLabel(dateKey: string): string {
   return `התאריך שנבחר עבורך למבחן: יום ${weekday}, ${day}/${month}/${year}`;
 }
 
-/** dd/mm/yyyy for junior exam-confirm flow */
+/** dd/mm/yyyy for exam-confirm flow */
 export function formatScheduledExamDateDisplay(dateKey: string): string {
   const match = dateKey.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!match) {

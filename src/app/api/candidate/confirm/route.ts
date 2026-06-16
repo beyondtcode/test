@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { parseNonEmptyString } from "@/lib/api/validation";
+import { formatConfirmGreetingName } from "@/lib/candidate/display-name";
 import {
   formatScheduledExamDateDisplay,
   formatScheduledExamTimeDisplay,
@@ -77,7 +78,7 @@ export async function GET(request: Request) {
     const { row, dateLabel, timeLabel } = resolved;
 
     return NextResponse.json({
-      name: row.name,
+      name: formatConfirmGreetingName(row.name),
       dateLabel,
       timeLabel,
       alreadyConfirmed: row.statusConfirm === CONFIRM_STATUS.APPROVED,
