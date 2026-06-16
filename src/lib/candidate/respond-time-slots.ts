@@ -26,3 +26,20 @@ export function formatAdminScheduledDateLabel(dateKey: string): string {
   const weekday = date.toLocaleDateString("he-IL", { weekday: "long" });
   return `התאריך שנבחר עבורך למבחן: יום ${weekday}, ${day}/${month}/${year}`;
 }
+
+/** dd/mm/yyyy for junior exam-confirm flow */
+export function formatScheduledExamDateDisplay(dateKey: string): string {
+  const match = dateKey.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) {
+    return "";
+  }
+
+  const [, year, month, day] = match;
+  return `${day}/${month}/${year}`;
+}
+
+/** HH:mm from Monday date column time (e.g. 10:00:00) */
+export function formatScheduledExamTimeDisplay(time: string): string {
+  const match = time.trim().match(/^(\d{2}):(\d{2})/);
+  return match ? `${match[1]}:${match[2]}` : "";
+}
