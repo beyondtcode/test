@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {
   getScheduledCandidateRow,
   isEligibleForExamInvite,
+  scheduledInstantFromRow,
   triggerSuperMailExamDispatch,
 } from "@/lib/monday/scheduled";
 import { verifyQStashRequest } from "@/lib/qstash/verify";
@@ -49,6 +50,15 @@ export async function POST(request: Request) {
     if (!isEligibleForExamInvite(row)) {
       return NextResponse.json(
         { itemId, status: "skipped", reason: "not_eligible" },
+        { status: 200 }
+      );
+    }
+
+    const scheduledAt = scheduledInstantFromRow(row);
+    const earliestFireMs = scheduledAt ? scheduledAt.getTime() - 2 * 60 * 1000 : null;
+    if (earliestFireMs !== null && Date.now() < earliestFireMs) {
+      return NextResponse.json(
+        { itemId, status: "skipped", reason: "too_early" },
         { status: 200 }
       );
     }
