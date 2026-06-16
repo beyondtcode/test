@@ -18,8 +18,10 @@ import {
 import {
   DEFAULT_CANDIDATE_TRACK,
   isCandidateTrack,
+  MONDAY_COLUMNS,
   type CandidateTrack,
 } from "@/lib/monday";
+import { placeholderScheduledColumnValue } from "@/lib/monday/scheduled";
 import {
   ADMIN_SESSION_COOKIE_NAME,
   verifyAdminSessionCookieValue,
@@ -152,7 +154,10 @@ export async function POST(request: Request) {
 
       try {
         const token = generateCandidateMagicToken();
-        const columnValues = buildImportColumnValues(row, token, candidateTrack);
+        const columnValues = {
+          ...buildImportColumnValues(row, token, candidateTrack),
+          [MONDAY_COLUMNS.scheduledAt]: placeholderScheduledColumnValue(),
+        };
         await createCandidateItemInGroup({
           groupId,
           name: itemName,

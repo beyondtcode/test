@@ -14,6 +14,7 @@ export {
   triggerSuperMailExamDispatch,
   isEligibleForExamInvite,
   scheduledInstantFromRow,
+  placeholderScheduledColumnValue,
 } from "./scheduled";
 export {
   MONDAY_COLUMNS,

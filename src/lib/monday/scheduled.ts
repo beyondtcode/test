@@ -7,7 +7,10 @@ import {
   MONDAY_PLACEHOLDER_SCHEDULED_DATE,
 } from "./columns";
 import { mondayFetch } from "./client";
-import { instantFromMondayDateColumn } from "./datetime";
+import {
+  formatMondayDateTime,
+  instantFromMondayDateColumn,
+} from "./datetime";
 import type {
   ChangeMultipleColumnValuesData,
   MondayColumnValue,
@@ -35,6 +38,16 @@ type ScheduledBoardItem = {
 type ItemByIdData = {
   items: ScheduledBoardItem[];
 };
+
+/** Monday date column value written on create before the real exam time is set. */
+export function placeholderScheduledColumnValue(): { date: string; time: string } {
+  return formatMondayDateTime(
+    instantFromMondayDateColumn(
+      MONDAY_PLACEHOLDER_SCHEDULED_DATE.date,
+      MONDAY_PLACEHOLDER_SCHEDULED_DATE.time
+    )
+  );
+}
 
 export function parseMondayDateColumnValue(
   value: string | null | undefined
