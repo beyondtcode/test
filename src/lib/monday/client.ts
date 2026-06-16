@@ -279,8 +279,16 @@ export async function verifyCandidateToken(
   return candidate;
 }
 
-/** Sets the real scheduled exam date after create (placeholder was sent on create_item). */
-export async function updateCandidateScheduledAt(
+/**
+ * Monday "When column changes" automations may not fire on a single write when the
+ * column already holds a related value. A dummy write followed by the real value
+ * forces a consecutive change event.
+ */
+function scheduledAtDummyTriggerDate(): Date {
+  return new Date();
+}
+
+async function changeCandidateScheduledAtColumn(
   itemId: string,
   scheduledAt: Date
 ): Promise<void> {
@@ -291,7 +299,7 @@ export async function updateCandidateScheduledAt(
 
   await mondayFetch<ChangeMultipleColumnValuesData>({
     query: `
-      mutation UpdateCandidateScheduledAt(
+      mutation ChangeCandidateScheduledAtColumn(
         $boardId: ID!
         $itemId: ID!
         $columnValues: JSON!
@@ -314,11 +322,21 @@ export async function updateCandidateScheduledAt(
   });
 }
 
+/** Sets the real scheduled exam date after create (placeholder was sent on create_item). */
+export async function updateCandidateScheduledAt(
+  itemId: string,
+  scheduledAt: Date
+): Promise<void> {
+  await changeCandidateScheduledAtColumn(itemId, scheduledAtDummyTriggerDate());
+  await changeCandidateScheduledAtColumn(itemId, scheduledAt);
+}
+
 /** Sets scheduled exam datetime and marks candidate approval as "אושר". */
 export async function confirmCandidateExamSchedule(
   itemId: string,
   scheduledAt: Date
 ): Promise<void> {
+  await changeCandidateScheduledAtColumn(itemId, scheduledAtDummyTriggerDate());
   const { date, time } = formatMondayDateTime(scheduledAt);
   const columnValues = JSON.stringify({
     [MONDAY_COLUMNS.scheduledAt]: { date, time },
