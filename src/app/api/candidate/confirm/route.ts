@@ -38,8 +38,14 @@ async function resolveCandidateByToken(token: string) {
     return { error: MISSING_DATE_ERROR, status: 400 as const };
   }
 
-  const dateLabel = formatScheduledExamDateDisplay(scheduledDate);
-  const timeLabel = formatScheduledExamTimeDisplay(row.scheduledTime);
+  const dateLabel = formatScheduledExamDateDisplay(
+    scheduledDate,
+    row.scheduledTime
+  );
+  const timeLabel = formatScheduledExamTimeDisplay(
+    scheduledDate,
+    row.scheduledTime
+  );
 
   if (!dateLabel || !timeLabel) {
     return { error: MISSING_DATE_ERROR, status: 400 as const };

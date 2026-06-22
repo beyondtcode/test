@@ -25,6 +25,41 @@ export function instantFromMondayDateColumn(
   return new Date(`${dateKey}T${hh}:${mm}:${ss}Z`);
 }
 
+/** Formats an instant as Jerusalem wall-clock date and HH:mm. */
+export function instantToJerusalemWallClock(date: Date): {
+  dateKey: string;
+  timeHm: string;
+} {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: JERUSALEM_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+
+  const parts = Object.fromEntries(
+    formatter.formatToParts(date).map((p) => [p.type, p.value])
+  ) as Record<string, string>;
+
+  return {
+    dateKey: `${parts.year}-${parts.month}-${parts.day}`,
+    timeHm: `${parts.hour}:${parts.minute}`,
+  };
+}
+
+/** Monday UTC storage → Jerusalem wall-clock for candidate-facing display. */
+export function jerusalemWallClockFromMondayDateColumn(
+  dateKey: string,
+  time: string
+): { dateKey: string; timeHm: string } {
+  return instantToJerusalemWallClock(
+    instantFromMondayDateColumn(dateKey, time)
+  );
+}
+
 /** Converts a Jerusalem wall-clock date and HH:mm into a UTC instant. */
 export function jerusalemWallClockToInstant(
   dateKey: string,
