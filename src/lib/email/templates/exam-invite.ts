@@ -1,6 +1,24 @@
 import { EXAM_DURATION_MS } from "@/lib/exam/questions";
+import { getExamRules } from "@/lib/exam/rules";
 
 const EXAM_DURATION_MINUTES = Math.round(EXAM_DURATION_MS / 60000);
+
+function renderExamRulesHtml(): string {
+  const rules = getExamRules(EXAM_DURATION_MINUTES);
+  return rules
+    .map((rule, index) => {
+      const isLast = index === rules.length - 1;
+      const margin = isLast ? "" : "margin-bottom:8px;";
+      const text = escapeHtml(rule.text);
+
+      if (rule.type === "warning") {
+        return `<li style="${margin}padding:10px 12px;background-color:#fef2f2;border:1px solid #fecaca;border-radius:8px;color:#991b1b;font-weight:600;list-style-position:inside;">${text}</li>`;
+      }
+
+      return `<li style="${margin}">${text}</li>`;
+    })
+    .join("\n                      ");
+}
 
 export type ExamInviteTemplateParams = {
   candidateName: string;
@@ -57,13 +75,7 @@ export function buildExamInviteHtml(params: ExamInviteTemplateParams): string {
                   <td style="padding:20px 22px;direction:rtl;text-align:right;">
                     <h2 style="margin:0 0 12px;font-size:18px;font-weight:600;color:#312e81;">כללי המבחן</h2>
                     <ul style="margin:0;padding:0 20px 0 0;font-size:15px;line-height:1.75;color:#334155;">
-                      <li style="margin-bottom:8px;">יש לך מגבלת זמן קשיחה של ${EXAM_DURATION_MINUTES} דקות.</li>
-                      <li style="margin-bottom:8px;">לא ניתן להשהות את הטיימר לאחר תחילת המבחן.</li>
-                      <li style="margin-bottom:8px;">המבחן יוגש אוטומטית עם סיום הזמן.</li>
-                      <li style="margin-bottom:8px;padding:10px 12px;background-color:#fef2f2;border:1px solid #fecaca;border-radius:8px;color:#991b1b;font-weight:600;list-style-position:inside;">
-                        חשוב מאוד: אסור לצאת ממסך המבחן. יציאה אחת בלבד תחסום את המבחן באופן מיידי.
-                      </li>
-                      <li>ההתקדמות נשמרת מקומית במקרה של רענון הדף.</li>
+                      ${renderExamRulesHtml()}
                     </ul>
                   </td>
                 </tr>

@@ -4,7 +4,11 @@ import {
   parseNonEmptyString,
   parseTabLeavesCount,
 } from "@/lib/api/validation";
-import { EXAM_LOAD_ERROR_HE } from "@/lib/exam/errors";
+import {
+  EXAM_LOAD_ERROR_HE,
+  EXAM_ALREADY_SUBMITTED_ERROR_HE,
+  EXAM_BLOCKED_ERROR_HE,
+} from "@/lib/exam/errors";
 import { getExamQuestionCount, gradeAnswers } from "@/lib/exam/questions";
 import {
   EXAM_STATUS,
@@ -57,16 +61,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: EXAM_LOAD_ERROR_HE }, { status: 400 });
     }
 
-    if (
-      candidate.status === EXAM_STATUS.SUBMITTED ||
-      candidate.status === EXAM_STATUS.BLOCKED
-    ) {
-      return NextResponse.json({ error: EXAM_LOAD_ERROR_HE }, { status: 403 });
+    if (candidate.status === EXAM_STATUS.BLOCKED) {
+      return NextResponse.json(
+        { error: EXAM_BLOCKED_ERROR_HE, reason: "blocked" },
+        { status: 403 }
+      );
+    }
+
+    if (candidate.status === EXAM_STATUS.SUBMITTED) {
+      return NextResponse.json(
+        { error: EXAM_ALREADY_SUBMITTED_ERROR_HE, reason: "submitted" },
+        { status: 403 }
+      );
     }
 
     const score = gradeAnswers(examTypeId, answers);
     const status =
       tabLeavesCount > 0 ? EXAM_STATUS.BLOCKED : EXAM_STATUS.SUBMITTED;
+    const reason = tabLeavesCount > 0 ? "blocked" : "submitted";
 
     console.info("[api/submit] exam submitted", {
       itemId,
@@ -82,7 +94,7 @@ export async function POST(request: Request) {
 
     await submitCandidateExam(itemId, score, tabLeavesCount, status);
 
-    return NextResponse.json({ score, status });
+    return NextResponse.json({ score, status, reason });
   } catch (error) {
     console.error("[api/submit]", error);
     return NextResponse.json({ error: EXAM_LOAD_ERROR_HE }, { status: 500 });

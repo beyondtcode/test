@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { parseNonEmptyString } from "@/lib/api/validation";
+import { resolveExamAuthAccess } from "@/lib/exam/access-window";
 import { EXAM_LOAD_ERROR_HE } from "@/lib/exam/errors";
-import { EXAM_STATUS, getCandidateByToken } from "@/lib/monday";
+import { getCandidateByToken } from "@/lib/monday";
 
 export const runtime = "nodejs";
 
@@ -20,45 +21,25 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: EXAM_LOAD_ERROR_HE }, { status: 404 });
     }
 
-    if (
-      candidate.status === EXAM_STATUS.NOT_STARTED ||
-      candidate.status === EXAM_STATUS.SEND_EXAM_NOW
-    ) {
-      return NextResponse.json({
-        itemId: candidate.itemId,
-        name: candidate.name,
-        email: candidate.email,
-        examTypeId: candidate.examTypeId,
-        examTypeLabel: candidate.examTypeLabel,
-        candidateSource: candidate.candidateSource,
-        jobPosition: candidate.jobPosition,
-      });
-    }
-
-    if (candidate.status === EXAM_STATUS.IN_PROGRESS) {
+    const access = await resolveExamAuthAccess(candidate);
+    if (!access.allowed) {
       return NextResponse.json(
-        {
-          itemId: candidate.itemId,
-          name: candidate.name,
-          email: candidate.email,
-          examTypeId: candidate.examTypeId,
-          examTypeLabel: candidate.examTypeLabel,
-          candidateSource: candidate.candidateSource,
-          jobPosition: candidate.jobPosition,
-        },
-        { status: 200 }
+        { error: access.error, reason: access.reason },
+        { status: 403 }
       );
     }
 
-    if (candidate.status === EXAM_STATUS.SUBMITTED) {
-      return NextResponse.json({ error: EXAM_LOAD_ERROR_HE }, { status: 403 });
-    }
-
-    if (candidate.status === EXAM_STATUS.BLOCKED) {
-      return NextResponse.json({ error: EXAM_LOAD_ERROR_HE }, { status: 403 });
-    }
-
-    return NextResponse.json({ error: EXAM_LOAD_ERROR_HE }, { status: 403 });
+    return NextResponse.json({
+      itemId: candidate.itemId,
+      name: candidate.name,
+      email: candidate.email,
+      examTypeId: candidate.examTypeId,
+      examTypeLabel: candidate.examTypeLabel,
+      candidateSource: candidate.candidateSource,
+      jobPosition: candidate.jobPosition,
+      allowedPhase: access.phase,
+      examStatus: access.examStatus,
+    });
   } catch (error) {
     console.error("[api/auth]", error);
     return NextResponse.json({ error: EXAM_LOAD_ERROR_HE }, { status: 500 });

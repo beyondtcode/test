@@ -3,8 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import type { ExamTypeId } from "@/lib/exam/exam-types";
-import { EXAM_LOAD_ERROR_HE } from "@/lib/exam/errors";
+import {
+  EXAM_ALREADY_SUBMITTED_ERROR_HE,
+  EXAM_BLOCKED_ERROR_HE,
+  EXAM_LOAD_ERROR_HE,
+  type ExamAccessReason,
+} from "@/lib/exam/errors";
 import { EXAM_DURATION_MS } from "@/lib/exam/questions";
+import { getExamRules } from "@/lib/exam/rules";
 import type { PublicExamQuestion } from "@/lib/exam/questions";
 import {
   answersRecordToArray,
@@ -14,11 +20,20 @@ import {
   saveExamSession,
   type ExamSession,
 } from "@/lib/exam/session";
+import { EXAM_STATUS } from "@/lib/monday/columns";
 import { ExamBranding } from "./ExamBranding";
 import { IconEye, IconEyeOff } from "./ExamIcons";
 import { ExamShell } from "./ExamShell";
 
-type ViewState = "loading" | "welcome" | "exam" | "submitted" | "error";
+type ViewState =
+  | "loading"
+  | "welcome"
+  | "exam"
+  | "submitted"
+  | "blocked"
+  | "already_submitted"
+  | "entry_denied"
+  | "error";
 
 type AuthSuccess = {
   itemId: string;
@@ -28,6 +43,8 @@ type AuthSuccess = {
   examTypeId: ExamTypeId;
   examTypeLabel: string;
   candidateSource?: string;
+  allowedPhase: "welcome" | "exam";
+  examStatus: string;
 };
 
 const TAB_LEAVE_LIMIT = 1;
@@ -128,7 +145,12 @@ function LoadingView() {
   );
 }
 
-function AccessDeniedView() {
+type AuthResponse = AuthSuccess & {
+  error?: string;
+  reason?: ExamAccessReason;
+};
+
+function BlockedView() {
   return (
     <ExamShell>
       <div className="flex min-h-[60vh] items-center justify-center px-4 pb-12">
@@ -138,14 +160,69 @@ function AccessDeniedView() {
               !
             </span>
           </div>
-          <h1 className="text-2xl font-bold text-slate-900">אין גישה למבחן</h1>
+          <h1 className="text-2xl font-bold text-slate-900">המבחן חסום</h1>
           <p className="mt-4 leading-relaxed text-slate-600">
-            {ACCESS_DENIED_MESSAGE}
+            {EXAM_BLOCKED_ERROR_HE}
           </p>
         </ExamCard>
       </div>
     </ExamShell>
   );
+}
+
+function AlreadySubmittedView() {
+  return (
+    <ExamShell>
+      <div className="flex min-h-[60vh] items-center justify-center px-4 pb-12">
+        <ExamCard className="text-center">
+          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 text-slate-500 shadow-inner">
+            <span className="text-3xl font-bold" aria-hidden>
+              ✓
+            </span>
+          </div>
+          <h1 className="text-2xl font-bold text-slate-900">המבחן כבר הוגש</h1>
+          <p className="mt-4 leading-relaxed text-slate-600">
+            {EXAM_ALREADY_SUBMITTED_ERROR_HE}
+          </p>
+        </ExamCard>
+      </div>
+    </ExamShell>
+  );
+}
+
+function EntryDeniedView({
+  reason,
+  message,
+}: {
+  reason: "window_expired" | "too_early";
+  message: string;
+}) {
+  const title =
+    reason === "window_expired"
+      ? "חלון הכניסה למבחן נסגר"
+      : "עדיין לא הגיע מועד המבחן";
+
+  return (
+    <ExamShell>
+      <div className="flex min-h-[60vh] items-center justify-center px-4 pb-12">
+        <ExamCard className="text-center">
+          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 shadow-inner">
+            <span className="text-3xl font-bold" aria-hidden>
+              ⏱
+            </span>
+          </div>
+          <h1 className="text-2xl font-bold text-slate-900">{title}</h1>
+          <p className="mt-4 leading-relaxed text-slate-600">{message}</p>
+        </ExamCard>
+      </div>
+    </ExamShell>
+  );
+}
+
+function isEntryDeniedReason(
+  reason?: ExamAccessReason
+): reason is "window_expired" | "too_early" {
+  return reason === "window_expired" || reason === "too_early";
 }
 
 function ThankYouView() {
@@ -294,8 +371,10 @@ export function ExamFlow() {
   const tokenFromUrl = searchParams.get("token")?.trim() ?? "";
 
   const [view, setView] = useState<ViewState>("loading");
-  const [accessDenied, setAccessDenied] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [entryDeniedReason, setEntryDeniedReason] = useState<
+    "window_expired" | "too_early" | null
+  >(null);
   const [candidate, setCandidate] = useState<AuthSuccess | null>(null);
   const [token, setToken] = useState("");
   const [questions, setQuestions] = useState<PublicExamQuestion[]>([]);
@@ -322,6 +401,30 @@ export function ExamFlow() {
     sessionRef.current = next;
     saveExamSession(next);
   }, []);
+
+  const denyExamAccess = useCallback(
+    (data: { reason?: ExamAccessReason; error?: string }) => {
+      clearExamSession();
+      sessionRef.current = null;
+      if (data.reason === "blocked") {
+        setView("blocked");
+        return;
+      }
+      if (data.reason === "submitted") {
+        setView("already_submitted");
+        return;
+      }
+      if (isEntryDeniedReason(data.reason)) {
+        setEntryDeniedReason(data.reason);
+        setErrorMessage(data.error ?? EXAM_LOAD_ERROR_HE);
+        setView("entry_denied");
+        return;
+      }
+      setErrorMessage(data.error ?? EXAM_LOAD_ERROR_HE);
+      setView("error");
+    },
+    []
+  );
 
   const submitExam = useCallback(
     async (tabLeavesCount: number, forced = false) => {
@@ -353,19 +456,20 @@ export function ExamFlow() {
         const data = (await response.json()) as {
           score?: number;
           status?: string;
+          reason?: ExamAccessReason;
           error?: string;
         };
 
         if (!response.ok) {
-          throw new Error(data.error ?? "שליחת המבחן נכשלה");
+          denyExamAccess(data);
+          return;
         }
 
         clearExamSession();
         sessionRef.current = null;
-        setView("submitted");
+        setView(data.reason === "blocked" ? "blocked" : "submitted");
       } catch (err) {
         if (!forced) {
-          setAccessDenied(false);
           setErrorMessage(
             err instanceof Error ? err.message : "שליחת המבחן נכשלה"
           );
@@ -376,7 +480,7 @@ export function ExamFlow() {
         submitInFlightRef.current = false;
       }
     },
-    []
+    [denyExamAccess]
   );
 
   const handleTabLeave = useCallback(() => {
@@ -451,49 +555,9 @@ export function ExamFlow() {
   useEffect(() => {
     async function init() {
       const stored = loadExamSession();
-
-      if (stored?.phase === "exam" && stored.endsAt > Date.now()) {
-        sessionRef.current = stored;
-        setToken(stored.token);
-        setCandidate({
-          itemId: stored.itemId,
-          name: stored.name,
-          email: "",
-          jobPosition: stored.jobPosition ?? "",
-          examTypeId: stored.examTypeId ?? "exam-a",
-          examTypeLabel: stored.examTypeLabel ?? "",
-          candidateSource: stored.candidateSource,
-        });
-        setQuestions(stored.questions ?? []);
-        setAnswers(stored.answers);
-        setTabLeaves(stored.tabLeaves);
-        setEndsAt(stored.endsAt);
-        setRemainingMs(stored.endsAt - Date.now());
-        setExamDurationMs(stored.durationMs ?? EXAM_DURATION_MS);
-        setView("exam");
-        return;
-      }
-
-      if (stored?.phase === "welcome" && stored.token) {
-        sessionRef.current = stored;
-        setToken(stored.token);
-        setCandidate({
-          itemId: stored.itemId,
-          name: stored.name,
-          email: "",
-          jobPosition: stored.jobPosition ?? "",
-          examTypeId: stored.examTypeId ?? "exam-a",
-          examTypeLabel: stored.examTypeLabel ?? "",
-          candidateSource: stored.candidateSource,
-        });
-        setExamDurationMs(stored.durationMs ?? EXAM_DURATION_MS);
-        setView("welcome");
-        return;
-      }
-
       const authToken = tokenFromUrl || stored?.token;
+
       if (!authToken) {
-        setAccessDenied(false);
         setErrorMessage(EXAM_LOAD_ERROR_HE);
         setView("error");
         return;
@@ -506,25 +570,99 @@ export function ExamFlow() {
           body: JSON.stringify({ token: authToken }),
         });
 
-        const data = (await response.json()) as AuthSuccess & {
-          error?: string;
+        const data = (await response.json()) as AuthResponse;
+
+        if (!response.ok) {
+          denyExamAccess(data);
+          return;
+        }
+
+        if (!data.examTypeId || !data.allowedPhase) {
+          denyExamAccess({ error: EXAM_LOAD_ERROR_HE });
+          return;
+        }
+
+        const candidateData: AuthSuccess = {
+          itemId: data.itemId,
+          name: data.name,
+          email: data.email,
+          examTypeId: data.examTypeId,
+          examTypeLabel: data.examTypeLabel,
+          candidateSource: data.candidateSource,
+          jobPosition: data.jobPosition,
+          allowedPhase: data.allowedPhase,
+          examStatus: data.examStatus ?? "",
         };
 
-        if (!response.ok || !data.examTypeId) {
-          setAccessDenied(false);
-          setErrorMessage(data.error ?? EXAM_LOAD_ERROR_HE);
-          setView("error");
+        if (data.allowedPhase === "exam") {
+          if (
+            stored?.phase === "exam" &&
+            stored.token === authToken &&
+            stored.itemId === candidateData.itemId &&
+            stored.endsAt > Date.now()
+          ) {
+            sessionRef.current = stored;
+            setToken(stored.token);
+            setCandidate({
+              itemId: stored.itemId,
+              name: stored.name,
+              email: "",
+              jobPosition: stored.jobPosition ?? "",
+              examTypeId: stored.examTypeId ?? "exam-a",
+              examTypeLabel: stored.examTypeLabel ?? "",
+              candidateSource: stored.candidateSource,
+              allowedPhase: "exam",
+              examStatus: candidateData.examStatus,
+            });
+            setQuestions(stored.questions ?? []);
+            setAnswers(stored.answers);
+            setTabLeaves(stored.tabLeaves);
+            setEndsAt(stored.endsAt);
+            setRemainingMs(stored.endsAt - Date.now());
+            setExamDurationMs(stored.durationMs ?? EXAM_DURATION_MS);
+            setView("exam");
+            return;
+          }
+
+          if (stored?.phase === "exam") {
+            clearExamSession();
+          }
+        } else if (stored?.phase === "exam") {
+          clearExamSession();
+        }
+
+        if (
+          data.allowedPhase === "welcome" &&
+          stored?.phase === "welcome" &&
+          stored.token === authToken &&
+          stored.itemId === candidateData.itemId
+        ) {
+          sessionRef.current = stored;
+          setToken(stored.token);
+          setCandidate({
+            itemId: stored.itemId,
+            name: stored.name,
+            email: "",
+            jobPosition: stored.jobPosition ?? "",
+            examTypeId: stored.examTypeId ?? candidateData.examTypeId,
+            examTypeLabel: stored.examTypeLabel ?? candidateData.examTypeLabel,
+            candidateSource: stored.candidateSource,
+            allowedPhase: "welcome",
+            examStatus: candidateData.examStatus,
+          });
+          setExamDurationMs(stored.durationMs ?? EXAM_DURATION_MS);
+          setView("welcome");
           return;
         }
 
         const session: ExamSession = {
           token: authToken,
-          itemId: data.itemId,
-          name: data.name,
-          jobPosition: data.jobPosition ?? "",
-          examTypeId: data.examTypeId,
-          examTypeLabel: data.examTypeLabel,
-          candidateSource: data.candidateSource,
+          itemId: candidateData.itemId,
+          name: candidateData.name,
+          jobPosition: candidateData.jobPosition ?? "",
+          examTypeId: candidateData.examTypeId,
+          examTypeLabel: candidateData.examTypeLabel,
+          candidateSource: candidateData.candidateSource,
           endsAt: 0,
           answers: {},
           tabLeaves: 0,
@@ -535,19 +673,18 @@ export function ExamFlow() {
         saveExamSession(session);
         setToken(authToken);
         setCandidate({
-          ...data,
-          jobPosition: data.jobPosition ?? "",
+          ...candidateData,
+          jobPosition: candidateData.jobPosition ?? "",
         });
         setView("welcome");
       } catch {
-        setAccessDenied(false);
         setErrorMessage(EXAM_LOAD_ERROR_HE);
         setView("error");
       }
     }
 
     void init();
-  }, [tokenFromUrl]);
+  }, [tokenFromUrl, denyExamAccess]);
 
   const handleStartExam = async () => {
     if (!candidate || !token || starting) {
@@ -568,12 +705,11 @@ export function ExamFlow() {
         questions?: PublicExamQuestion[];
         durationMs?: number;
         error?: string;
+        reason?: ExamAccessReason;
       };
 
       if (!response.ok) {
-        setAccessDenied(false);
-        setErrorMessage(data.error ?? EXAM_LOAD_ERROR_HE);
-        setView("error");
+        denyExamAccess(data);
         return;
       }
 
@@ -609,9 +745,17 @@ export function ExamFlow() {
       setEndsAt(newEndsAt);
       setRemainingMs(durationMs);
       setExamDurationMs(durationMs);
+      setCandidate((prev) =>
+        prev
+          ? {
+              ...prev,
+              allowedPhase: "exam",
+              examStatus: EXAM_STATUS.IN_PROGRESS,
+            }
+          : prev
+      );
       setView("exam");
     } catch {
-      setAccessDenied(false);
       setErrorMessage(EXAM_LOAD_ERROR_HE);
       setView("error");
     } finally {
@@ -636,10 +780,21 @@ export function ExamFlow() {
     return <LoadingView />;
   }
 
+  if (view === "blocked") {
+    return <BlockedView />;
+  }
+
+  if (view === "already_submitted") {
+    return <AlreadySubmittedView />;
+  }
+
+  if (view === "entry_denied" && entryDeniedReason) {
+    return (
+      <EntryDeniedView reason={entryDeniedReason} message={errorMessage} />
+    );
+  }
+
   if (view === "error") {
-    if (accessDenied) {
-      return <AccessDeniedView />;
-    }
     return (
       <ExamShell>
         <div className="flex min-h-[60vh] items-center justify-center px-4 pb-12">
@@ -660,14 +815,7 @@ export function ExamFlow() {
 
   if (view === "welcome" && candidate) {
     const durationMinutes = Math.round(examDurationMs / 60000);
-    const rules = [
-      { text: `יש לך מגבלת זמן קשיחה של ${durationMinutes} דקות.`, type: "normal" as const },
-      { text: "לא ניתן להשהות את הטיימר לאחר תחילת המבחן.", type: "normal" as const },
-      { text: "המבחן יוגש אוטומטית עם סיום הזמן.", type: "normal" as const },
-      { text: "אסור להשתמש במחשבון במהלך המבחן — אין להשתמש בו כלל.", type: "warning" as const },
-      { text: "חשוב מאוד: אסור לצאת ממסך המבחן. יציאה אחת בלבד תחסום את המבחן באופן מיידי.", type: "warning" as const },
-      { text: "ההתקדמות נשמרת מקומית במקרה של רענון הדף.", type: "normal" as const },
-    ];
+    const rules = getExamRules(durationMinutes);
 
     return (
       <ExamShell>
@@ -744,6 +892,10 @@ export function ExamFlow() {
         </div>
       </ExamShell>
     );
+  }
+
+  if (view !== "exam" || candidate?.allowedPhase !== "exam") {
+    return <LoadingView />;
   }
 
   const answeredCount = Object.values(answers).filter((a) => a !== null).length;

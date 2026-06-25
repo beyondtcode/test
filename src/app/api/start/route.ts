@@ -1,12 +1,9 @@
 import { NextResponse } from "next/server";
 import { parseNonEmptyString } from "@/lib/api/validation";
+import { resolveExamAuthAccess } from "@/lib/exam/access-window";
 import { EXAM_LOAD_ERROR_HE } from "@/lib/exam/errors";
 import { getExamDurationMs, getPublicQuestions } from "@/lib/exam/questions";
-import {
-  EXAM_STATUS,
-  startCandidateExam,
-  verifyCandidateToken,
-} from "@/lib/monday";
+import { EXAM_STATUS, startCandidateExam, verifyCandidateToken } from "@/lib/monday";
 
 export const runtime = "nodejs";
 
@@ -30,17 +27,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: EXAM_LOAD_ERROR_HE }, { status: 401 });
     }
 
-    if (
-      candidate.status !== EXAM_STATUS.NOT_STARTED &&
-      candidate.status !== EXAM_STATUS.SEND_EXAM_NOW &&
-      candidate.status !== EXAM_STATUS.IN_PROGRESS
-    ) {
-      return NextResponse.json({ error: EXAM_LOAD_ERROR_HE }, { status: 403 });
+    const access = await resolveExamAuthAccess(candidate);
+    if (!access.allowed) {
+      return NextResponse.json(
+        { error: access.error, reason: access.reason },
+        { status: 403 }
+      );
     }
 
     if (
-      candidate.status === EXAM_STATUS.NOT_STARTED ||
-      candidate.status === EXAM_STATUS.SEND_EXAM_NOW
+      access.phase === "welcome" &&
+      (candidate.status === EXAM_STATUS.NOT_STARTED ||
+        candidate.status === EXAM_STATUS.SEND_EXAM_NOW)
     ) {
       await startCandidateExam(itemId);
     }
@@ -52,6 +50,7 @@ export async function POST(request: Request) {
       durationMs: getExamDurationMs(examTypeId),
       examTypeId,
       examTypeLabel: candidate.examTypeLabel,
+      allowedPhase: access.phase,
     });
   } catch (error) {
     console.error("[api/start]", error);
