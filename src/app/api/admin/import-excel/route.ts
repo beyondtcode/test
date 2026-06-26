@@ -196,6 +196,8 @@ export async function POST(request: Request) {
             scheduleUpdated: scheduleResult?.updated ?? 0,
             scheduleFailed: scheduleResult?.failed.length ?? 0,
             scheduleErrors: scheduleResult?.failed ?? [],
+            qstashFailed: scheduleResult?.qstashFailed.length ?? 0,
+            qstashErrors: scheduleResult?.qstashFailed ?? [],
           }
         : {}),
     });

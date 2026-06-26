@@ -25,7 +25,16 @@ import {
 } from "@/components/admin/AdminUI";
 
 type CreateCandidateResponse =
-  | { link: string; token: string; error?: undefined }
+  | {
+      link: string;
+      token: string;
+      warning?: string;
+      examInviteSchedule?: {
+        status: string;
+        error?: string;
+      };
+      error?: undefined;
+    }
   | { link?: undefined; error: string };
 
 const LOCAL_FALLBACK_APP_URL = "http://localhost:3000";
@@ -59,6 +68,7 @@ export function AdminCreateCandidateForm() {
   const [error, setError] = useState<string | null>(null);
 
   const [createdToken, setCreatedToken] = useState<string | null>(null);
+  const [scheduleWarning, setScheduleWarning] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const baseUrl = getClientAppBaseUrl();
   const createdLink = createdToken
@@ -82,6 +92,7 @@ export function AdminCreateCandidateForm() {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
+    setScheduleWarning(null);
     setCopied(false);
 
     try {
@@ -106,6 +117,7 @@ export function AdminCreateCandidateForm() {
 
       if ("token" in data && data.token) {
         setCreatedToken(data.token);
+        setScheduleWarning(data.warning ?? null);
         setName("");
         setEmail("");
         setExamTypeId("exam-a");
@@ -263,7 +275,11 @@ export function AdminCreateCandidateForm() {
       </form>
 
       {createdLink && (
-        <div className="mt-6 rounded-2xl border border-brand-200 bg-gradient-to-l from-brand-50 to-violet-50/80 p-5">
+        <div className="mt-6 space-y-4">
+          {scheduleWarning && (
+            <AdminAlert variant="error">{scheduleWarning}</AdminAlert>
+          )}
+          <div className="rounded-2xl border border-brand-200 bg-gradient-to-l from-brand-50 to-violet-50/80 p-5">
           <p className="text-sm font-bold text-brand-900">הקישור שנוצר</p>
           <p className="mt-1 text-xs text-brand-700/80">
             העתיקי ושלחי למועמדת במייל או בוואטסאפ
@@ -283,6 +299,7 @@ export function AdminCreateCandidateForm() {
               <IconCopy />
               {copied ? "הועתק!" : "העתק קישור"}
             </AdminButton>
+          </div>
           </div>
         </div>
       )}

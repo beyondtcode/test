@@ -57,6 +57,8 @@ export async function POST(request: Request) {
       updated: result.updated,
       failed: result.failed.length,
       errors: result.failed,
+      qstashFailed: result.qstashFailed.length,
+      qstashErrors: result.qstashFailed,
     });
   } catch (error) {
     console.error("[api/admin/set-group-schedule]", error);

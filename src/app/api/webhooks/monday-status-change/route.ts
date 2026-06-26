@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getScheduledCandidateRow } from "@/lib/monday/scheduled";
-import { scheduleExamInviteFromRow } from "@/lib/qstash/schedule-exam-invite";
+import { scheduleExamInviteFromRowUnlessPending } from "@/lib/qstash/schedule-exam-invite";
 import { handleJobBoardStatusChange } from "@/lib/webhooks/handle-job-board-status-change";
 import {
   isApprovedConfirmStatusChange,
@@ -104,9 +104,34 @@ export async function POST(request: Request) {
       );
     }
 
-    await scheduleExamInviteFromRow(row);
+    const examInviteSchedule = await scheduleExamInviteFromRowUnlessPending(row);
+    if (examInviteSchedule.status === "failed") {
+      console.error(
+        `[webhooks/monday-status-change] QStash schedule issue for item ${itemId}:`,
+        examInviteSchedule
+      );
+    } else if (examInviteSchedule.status === "skipped") {
+      console.info("[webhooks/monday-status-change] exam invite not rescheduled:", {
+        itemId,
+        reason: examInviteSchedule.reason,
+        ...(examInviteSchedule.fireAt ? { fireAt: examInviteSchedule.fireAt } : {}),
+      });
+    }
 
-    return NextResponse.json({ itemId, status: "scheduled" }, { status: 200 });
+    return NextResponse.json(
+      {
+        itemId,
+        status:
+          examInviteSchedule.status === "scheduled"
+            ? "scheduled"
+            : examInviteSchedule.status === "skipped" &&
+                examInviteSchedule.reason === "already_scheduled"
+              ? "skipped"
+              : examInviteSchedule.status,
+        examInviteSchedule,
+      },
+      { status: 200 }
+    );
   } catch (error) {
     console.error(`[webhooks/monday-status-change] item ${itemId}:`, error);
     const message = error instanceof Error ? error.message : "Unknown error";

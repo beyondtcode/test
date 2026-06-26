@@ -141,28 +141,59 @@ export function scheduledInstantFromRow(
   return instantFromMondayDateColumn(row.scheduledDate, row.scheduledTime);
 }
 
-export function isEligibleForExamInvite(row: ScheduledCandidateRow): boolean {
+/**
+ * Parses a raw Monday `date_mm3y4hj6` column value (JSON) into an exam instant.
+ * Monday stores date/time in UTC; this does not treat components as Jerusalem local.
+ */
+export function scheduledInstantFromMondayColumnValue(
+  rawValue: string | null | undefined
+): Date | null {
+  const parsed = parseMondayDateColumnValue(rawValue);
+  if (!parsed) {
+    return null;
+  }
+
+  return scheduledInstantFromRow({
+    scheduledDate: parsed.date,
+    scheduledTime: parsed.time,
+  });
+}
+
+export type ExamInviteIneligibilityReason =
+  | "placeholder_date"
+  | "not_approved"
+  | "exam_already_started"
+  | "missing_email_or_token"
+  | "invalid_exam_type";
+
+export function examInviteIneligibilityReason(
+  row: ScheduledCandidateRow
+): ExamInviteIneligibilityReason | null {
   if (row.scheduledDate === MONDAY_PLACEHOLDER_SCHEDULED_DATE.date) {
-    return false;
+    return "placeholder_date";
   }
 
   if (row.statusConfirm !== CONFIRM_STATUS.APPROVED) {
-    return false;
+    return "not_approved";
   }
 
   if (row.examStatus !== EXAM_STATUS.NOT_STARTED) {
-    return false;
+    return "exam_already_started";
   }
 
   if (!row.magicLinkToken.trim() || !EMAIL_RE.test(row.email)) {
-    return false;
+    return "missing_email_or_token";
   }
 
   if (!examTypeIdFromMondayLabel(row.examTypeLabel)) {
-    return false;
+    return "invalid_exam_type";
   }
 
-  return true;
+  return null;
+}
+
+export function isEligibleForExamInvite(row: ScheduledCandidateRow): boolean {
+  return examInviteIneligibilityReason(row) === null;
 }
 
 /** Sets examStatus to SuperMail trigger label (color_mm3xcqrz). */

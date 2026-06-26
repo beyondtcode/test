@@ -21,7 +21,7 @@ import {
   getPrivateCandidatesGroupId,
 } from "@/lib/monday/groups";
 import { buildExamMagicLink, getRequestOrigin } from "@/lib/app-url";
-import { scheduleExamInviteAlarm } from "@/lib/qstash/schedule-exam-invite";
+import { scheduleExamInviteAlarmWithResult } from "@/lib/qstash/schedule-exam-invite";
 import {
   ADMIN_SESSION_COOKIE_NAME,
   verifyAdminSessionCookieValue,
@@ -154,18 +154,24 @@ export async function POST(request: Request) {
       columnValues,
     });
 
-    try {
-      await scheduleExamInviteAlarm(createdItemId, scheduledAt);
-    } catch (scheduleError) {
-      console.error(
-        `[api/admin/create-candidate] QStash schedule failed for item ${createdItemId}:`,
-        scheduleError
-      );
-    }
+    const examInviteSchedule = await scheduleExamInviteAlarmWithResult(
+      createdItemId,
+      scheduledAt
+    );
 
     const link = buildExamMagicLink(token);
 
-    return NextResponse.json({ link, token });
+    return NextResponse.json({
+      link,
+      token,
+      examInviteSchedule,
+      ...(examInviteSchedule.status === "failed"
+        ? {
+            warning:
+              "המועמדת נוצרה, אך תזמון שליחת המבחן נכשל. בדקו את הגדרות QStash בשרת.",
+          }
+        : {}),
+    });
   } catch (error) {
     console.error("[api/admin/create-candidate]", error);
     return NextResponse.json(

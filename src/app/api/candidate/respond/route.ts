@@ -11,7 +11,7 @@ import {
   getScheduledCandidateRow,
   MONDAY_PLACEHOLDER_SCHEDULED_DATE,
 } from "@/lib/monday";
-import { scheduleExamInviteAlarm } from "@/lib/qstash/schedule-exam-invite";
+import { scheduleExamInviteAlarmWithResult } from "@/lib/qstash/schedule-exam-invite";
 
 export const runtime = "nodejs";
 
@@ -108,16 +108,18 @@ export async function POST(request: Request) {
     const scheduledAt = combineDateAndTime(scheduledDate, timeSlot);
     await confirmCandidateExamSchedule(itemId, scheduledAt);
 
-    try {
-      await scheduleExamInviteAlarm(itemId, scheduledAt);
-    } catch (scheduleError) {
+    const examInviteSchedule = await scheduleExamInviteAlarmWithResult(
+      itemId,
+      scheduledAt
+    );
+    if (examInviteSchedule.status === "failed") {
       console.error(
         `[api/candidate/respond] QStash reschedule failed for item ${itemId}:`,
-        scheduleError
+        examInviteSchedule.error
       );
     }
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, examInviteSchedule });
   } catch (error) {
     console.error("[api/candidate/respond] POST", error);
     return NextResponse.json(

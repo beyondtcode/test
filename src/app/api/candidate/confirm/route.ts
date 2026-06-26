@@ -12,7 +12,7 @@ import {
   MONDAY_PLACEHOLDER_SCHEDULED_DATE,
   updateCandidateConfirmStatus,
 } from "@/lib/monday";
-import { scheduleExamInviteFromRow } from "@/lib/qstash/schedule-exam-invite";
+import { scheduleExamInviteFromRowWithResult } from "@/lib/qstash/schedule-exam-invite";
 
 export const runtime = "nodejs";
 
@@ -129,20 +129,19 @@ export async function POST(request: Request) {
 
     const { row } = resolved;
 
+    const examInviteSchedule = await scheduleExamInviteFromRowWithResult(row);
+    if (examInviteSchedule.status !== "scheduled") {
+      console.error(
+        `[api/candidate/confirm] QStash schedule issue for item ${row.itemId}:`,
+        examInviteSchedule
+      );
+    }
+
     if (row.statusConfirm !== CONFIRM_STATUS.APPROVED) {
       await updateCandidateConfirmStatus(row.itemId, CONFIRM_STATUS.APPROVED);
     }
 
-    try {
-      await scheduleExamInviteFromRow(row);
-    } catch (scheduleError) {
-      console.error(
-        `[api/candidate/confirm] QStash schedule failed for item ${row.itemId}:`,
-        scheduleError
-      );
-    }
-
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, examInviteSchedule });
   } catch (error) {
     console.error("[api/candidate/confirm] POST", error);
     return NextResponse.json(

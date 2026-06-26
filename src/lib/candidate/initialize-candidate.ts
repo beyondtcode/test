@@ -16,7 +16,7 @@ import type {
   MondayColumnValue,
 } from "@/lib/monday/types";
 import { parseColumnText } from "@/lib/monday/types";
-import { scheduleExamInviteAlarm } from "@/lib/qstash/schedule-exam-invite";
+import { scheduleExamInviteAlarmWithResult } from "@/lib/qstash/schedule-exam-invite";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -165,18 +165,19 @@ export async function initializeCandidateItem(
   });
 
   let scheduled = false;
-  try {
-    const row = await getScheduledCandidateRow(itemId);
-    const scheduledAt = row ? scheduledInstantFromRow(row) : null;
-    if (scheduledAt) {
-      await scheduleExamInviteAlarm(itemId, scheduledAt);
-      scheduled = true;
+  let scheduleError: string | undefined;
+  const row = await getScheduledCandidateRow(itemId);
+  const scheduledAt = row ? scheduledInstantFromRow(row) : null;
+  if (scheduledAt) {
+    const result = await scheduleExamInviteAlarmWithResult(itemId, scheduledAt);
+    scheduled = result.status === "scheduled";
+    if (result.status === "failed") {
+      scheduleError = result.error;
+      console.error(
+        `[initializeCandidateItem] QStash schedule failed for item ${itemId}:`,
+        result.error
+      );
     }
-  } catch (scheduleError) {
-    console.error(
-      `[initializeCandidateItem] QStash schedule failed for item ${itemId}:`,
-      scheduleError
-    );
   }
 
   return {
@@ -184,5 +185,6 @@ export async function initializeCandidateItem(
     token,
     scheduled,
     alreadyInitialized: false,
+    ...(scheduleError ? { scheduleError } : {}),
   };
 }

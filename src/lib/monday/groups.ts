@@ -8,7 +8,7 @@ import {
   type CandidateTrack,
 } from "./columns";
 import { mondayFetch } from "./client";
-import { scheduleExamInviteAlarm } from "@/lib/qstash/schedule-exam-invite";
+import { scheduleExamInviteAlarmWithResult } from "@/lib/qstash/schedule-exam-invite";
 import type { ParsedCandidateRow } from "@/lib/excel/parse-candidate-sheet";
 
 export const PRIVATE_CANDIDATES_GROUP_TITLE = "מועמדים פרטיים";
@@ -298,6 +298,7 @@ export async function listGroupItems(groupId: string): Promise<MondayGroupItem[]
 export type ScheduleGroupResult = {
   updated: number;
   failed: Array<{ itemId: string; name?: string; message: string }>;
+  qstashFailed: Array<{ itemId: string; name?: string; message: string }>;
 };
 
 export async function scheduleExamDateForGroup(
@@ -306,18 +307,22 @@ export async function scheduleExamDateForGroup(
 ): Promise<ScheduleGroupResult> {
   const items = await listGroupItems(groupId);
   const failed: ScheduleGroupResult["failed"] = [];
+  const qstashFailed: ScheduleGroupResult["qstashFailed"] = [];
   let updated = 0;
 
   for (const item of items) {
     try {
       await updateCandidateScheduledAt(item.id, scheduledAt);
-      try {
-        await scheduleExamInviteAlarm(item.id, scheduledAt);
-      } catch (scheduleError) {
-        console.error(
-          `[scheduleExamDateForGroup] QStash schedule failed for item ${item.id}:`,
-          scheduleError
-        );
+      const scheduleResult = await scheduleExamInviteAlarmWithResult(
+        item.id,
+        scheduledAt
+      );
+      if (scheduleResult.status === "failed") {
+        qstashFailed.push({
+          itemId: item.id,
+          name: item.name,
+          message: scheduleResult.error,
+        });
       }
       updated += 1;
     } catch (error) {
@@ -332,5 +337,5 @@ export async function scheduleExamDateForGroup(
     }
   }
 
-  return { updated, failed };
+  return { updated, failed, qstashFailed };
 }
