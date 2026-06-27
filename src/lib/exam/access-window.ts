@@ -1,10 +1,10 @@
-import { instantToJerusalemWallClock } from "@/lib/monday/datetime";
 import { EXAM_STATUS } from "@/lib/monday/columns";
 import {
   getScheduledCandidateRow,
   scheduledInstantFromRow,
+  scheduledJerusalemWallClockFromRow,
 } from "@/lib/monday/scheduled";
-import type { CandidateRecord } from "@/lib/monday/types";
+import type { CandidateRecord, ScheduledCandidateRow } from "@/lib/monday/types";
 import {
   EXAM_ALREADY_SUBMITTED_ERROR_HE,
   EXAM_BLOCKED_ERROR_HE,
@@ -41,8 +41,10 @@ export function examEntryWindowViolation(
   return null;
 }
 
-function formatScheduledInstantForDisplay(scheduledAt: Date): string {
-  const { dateKey, timeHm } = instantToJerusalemWallClock(scheduledAt);
+function formatScheduledRowForDisplay(
+  row: Pick<ScheduledCandidateRow, "scheduledDate" | "scheduledTime">
+): string {
+  const { dateKey, timeHm } = scheduledJerusalemWallClockFromRow(row);
   const match = dateKey.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!match) {
     return timeHm;
@@ -54,9 +56,9 @@ function formatScheduledInstantForDisplay(scheduledAt: Date): string {
 
 export function examEntryWindowErrorMessage(
   violation: ExamEntryWindowViolation,
-  scheduledAt: Date
+  row: Pick<ScheduledCandidateRow, "scheduledDate" | "scheduledTime">
 ): string {
-  const when = formatScheduledInstantForDisplay(scheduledAt);
+  const when = formatScheduledRowForDisplay(row);
 
   if (violation === "too_early") {
     return `עדיין לא הגיע מועד המבחן. ניתן יהיה להיכנס ב-${when}.`;
@@ -150,6 +152,6 @@ export async function checkExamEntryWindow(
   return {
     ok: false,
     reason: violation,
-    error: examEntryWindowErrorMessage(violation, scheduledAt),
+    error: examEntryWindowErrorMessage(violation, row),
   };
 }

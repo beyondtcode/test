@@ -90,24 +90,6 @@ export async function scheduleExamInviteAlarm(
     destination,
     deduplicationId: alarmKey,
   });
-
-  // #region agent log
-  fetch("http://127.0.0.1:7488/ingest/5e9b5d4c-503c-4b19-9abd-9ba9afdbe29a", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Debug-Session-Id": "0f3fda",
-    },
-    body: JSON.stringify({
-      sessionId: "0f3fda",
-      location: "schedule-exam-invite.ts:scheduleExamInviteAlarm",
-      message: "QStash alarm published",
-      data: { itemId, notBefore, fireAt: scheduledAt.toISOString(), messageId: publishResult.messageId },
-      timestamp: Date.now(),
-      hypothesisId: "H5-schedule",
-    }),
-  }).catch(() => {});
-  // #endregion
 }
 
 export type ExamInviteScheduleResult =

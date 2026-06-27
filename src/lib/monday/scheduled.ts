@@ -8,7 +8,8 @@ import {
 } from "./columns";
 import { mondayFetch } from "./client";
 import {
-  jerusalemWallClockToInstant,
+  instantFromMondayDateColumn,
+  jerusalemWallClockFromMondayDateColumn,
 } from "./datetime";
 import type {
   ChangeMultipleColumnValuesData,
@@ -46,49 +47,24 @@ export function placeholderScheduledColumnValue(): { date: string; time: string 
   };
 }
 
-const JERUSALEM_TZ = "Asia/Jerusalem";
-
-function scheduledTimeHmFromColumn(time: string): string {
-  const match = time.trim().match(/^(\d{2}):(\d{2})/);
-  return match ? `${match[1]}:${match[2]}` : "00:00";
-}
-
 /**
- * Interprets Monday scheduledAt date/time components as Asia/Jerusalem local time
- * and returns the corresponding UTC instant.
+ * Parses Monday scheduledAt storage (UTC date/time components per Monday API) into a UTC instant.
  */
-function scheduledInstantFromJerusalemWallClock(
+function scheduledInstantFromMondayStorage(
   dateKey: string,
   time: string
 ): Date {
-  const timeHm = scheduledTimeHmFromColumn(time);
-  const instant = jerusalemWallClockToInstant(dateKey, timeHm);
+  return instantFromMondayDateColumn(dateKey, time);
+}
 
-  // #region agent log
-  fetch("http://127.0.0.1:7488/ingest/5e9b5d4c-503c-4b19-9abd-9ba9afdbe29a", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Debug-Session-Id": "0f3fda",
-    },
-    body: JSON.stringify({
-      sessionId: "0f3fda",
-      location: "scheduled.ts:scheduledInstantFromJerusalemWallClock",
-      message: "Jerusalem wall-clock → UTC instant",
-      data: {
-        dateKey,
-        time,
-        timeHm,
-        jerusalemTz: JERUSALEM_TZ,
-        utcInstant: instant.toISOString(),
-      },
-      timestamp: Date.now(),
-      hypothesisId: "H1-timezone",
-    }),
-  }).catch(() => {});
-  // #endregion
-
-  return instant;
+/** Jerusalem wall-clock labels for a Monday scheduledAt row (UTC storage → local display). */
+export function scheduledJerusalemWallClockFromRow(
+  row: Pick<ScheduledCandidateRow, "scheduledDate" | "scheduledTime">
+): { dateKey: string; timeHm: string } {
+  return jerusalemWallClockFromMondayDateColumn(
+    row.scheduledDate,
+    row.scheduledTime
+  );
 }
 
 export function parseMondayDateColumnValue(
@@ -172,7 +148,7 @@ export async function getScheduledCandidateRow(
   return rowFromItem(item);
 }
 
-/** Interprets Monday scheduledAt date/time as Asia/Jerusalem local wall-clock. */
+/** Parses Monday scheduledAt storage (UTC components) into a UTC instant. */
 export function scheduledInstantFromRow(
   row: Pick<ScheduledCandidateRow, "scheduledDate" | "scheduledTime">
 ): Date | null {
@@ -180,7 +156,7 @@ export function scheduledInstantFromRow(
     return null;
   }
 
-  return scheduledInstantFromJerusalemWallClock(
+  return scheduledInstantFromMondayStorage(
     row.scheduledDate,
     row.scheduledTime
   );
@@ -188,7 +164,7 @@ export function scheduledInstantFromRow(
 
 /**
  * Parses a raw Monday `date_mm3y4hj6` column value (JSON) into an exam instant.
- * Date and time components are treated as Asia/Jerusalem local time (IDT/IST).
+ * Monday stores date/time in UTC; convert to Jerusalem only for display.
  */
 export function scheduledInstantFromMondayColumnValue(
   rawValue: string | null | undefined
@@ -202,7 +178,7 @@ export function scheduledInstantFromMondayColumnValue(
     return null;
   }
 
-  return scheduledInstantFromJerusalemWallClock(parsed.date, parsed.time);
+  return scheduledInstantFromMondayStorage(parsed.date, parsed.time);
 }
 
 export type ExamInviteIneligibilityReason =

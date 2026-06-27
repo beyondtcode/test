@@ -61,23 +61,6 @@ export async function POST(request: Request) {
         reason: verification.reason,
         error: verification.error,
       });
-      // #region agent log
-      fetch("http://127.0.0.1:7488/ingest/5e9b5d4c-503c-4b19-9abd-9ba9afdbe29a", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Debug-Session-Id": "0f3fda",
-        },
-        body: JSON.stringify({
-          sessionId: "0f3fda",
-          location: "send-exam-invite/route.ts:signature",
-          message: "QStash signature rejected",
-          data: { reason: verification.reason, error: verification.error },
-          timestamp: Date.now(),
-          hypothesisId: "H2-signature",
-        }),
-      }).catch(() => {});
-      // #endregion
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -140,29 +123,6 @@ export async function POST(request: Request) {
           emailPresent: Boolean(row.email.trim()),
         }
       );
-      // #region agent log
-      fetch("http://127.0.0.1:7488/ingest/5e9b5d4c-503c-4b19-9abd-9ba9afdbe29a", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Debug-Session-Id": "0f3fda",
-        },
-        body: JSON.stringify({
-          sessionId: "0f3fda",
-          location: "send-exam-invite/route.ts:eligibility",
-          message: "Candidate ineligible",
-          data: {
-            itemId,
-            reason: ineligibility,
-            detail,
-            examStatus: row.examStatus,
-            statusConfirm: row.statusConfirm,
-          },
-          timestamp: Date.now(),
-          hypothesisId: "H3-eligibility",
-        }),
-      }).catch(() => {});
-      // #endregion
       return NextResponse.json(
         { itemId, status: "skipped", reason: "not_eligible", detail: ineligibility },
         { status: 200 }
@@ -194,24 +154,6 @@ export async function POST(request: Request) {
       itemId,
       scheduledAt: scheduledAt?.toISOString(),
     });
-
-    // #region agent log
-    fetch("http://127.0.0.1:7488/ingest/5e9b5d4c-503c-4b19-9abd-9ba9afdbe29a", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Debug-Session-Id": "0f3fda",
-      },
-      body: JSON.stringify({
-        sessionId: "0f3fda",
-        location: "send-exam-invite/route.ts:success",
-        message: "SuperMail dispatch triggered",
-        data: { itemId, scheduledAt: scheduledAt?.toISOString() },
-        timestamp: Date.now(),
-        hypothesisId: "H4-success",
-      }),
-    }).catch(() => {});
-    // #endregion
 
     return NextResponse.json({ itemId, status: "triggered" });
   } catch (error) {

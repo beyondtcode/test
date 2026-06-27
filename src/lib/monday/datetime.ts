@@ -13,21 +13,6 @@ export function formatMondayDateTime(date: Date): { date: string; time: string }
   };
 }
 
-/**
- * Formats an instant as Asia/Jerusalem wall-clock components for the scheduledAt column.
- * Monday displays these values as-is to Israel-based users; scheduling must read them the same way.
- */
-export function formatMondayJerusalemWallClock(date: Date): {
-  date: string;
-  time: string;
-} {
-  const wall = instantToJerusalemWallClock(date);
-  return {
-    date: wall.dateKey,
-    time: `${wall.timeHm}:00`,
-  };
-}
-
 /** Parses Monday date column raw values (stored in UTC) into an instant. */
 export function instantFromMondayDateColumn(
   dateKey: string,
