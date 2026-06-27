@@ -3,13 +3,28 @@ const JERUSALEM_TZ = "Asia/Jerusalem";
 const pad2 = (n: number) => String(n).padStart(2, "0");
 
 /**
- * Formats an instant for Monday date columns.
- * Monday stores date/time in UTC and converts to the viewer's timezone in the UI.
+ * Formats an instant for Monday date columns that are not timezone-sensitive
+ * (e.g. startTime audit stamps). Values are stored as UTC components.
  */
 export function formatMondayDateTime(date: Date): { date: string; time: string } {
   return {
     date: `${date.getUTCFullYear()}-${pad2(date.getUTCMonth() + 1)}-${pad2(date.getUTCDate())}`,
     time: `${pad2(date.getUTCHours())}:${pad2(date.getUTCMinutes())}:${pad2(date.getUTCSeconds())}`,
+  };
+}
+
+/**
+ * Formats an instant as Asia/Jerusalem wall-clock components for the scheduledAt column.
+ * Monday displays these values as-is to Israel-based users; scheduling must read them the same way.
+ */
+export function formatMondayJerusalemWallClock(date: Date): {
+  date: string;
+  time: string;
+} {
+  const wall = instantToJerusalemWallClock(date);
+  return {
+    date: wall.dateKey,
+    time: `${wall.timeHm}:00`,
   };
 }
 

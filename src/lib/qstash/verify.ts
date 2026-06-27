@@ -13,13 +13,25 @@ function getReceiver(): Receiver {
   return receiver;
 }
 
+export type QStashVerificationResult =
+  | { ok: true }
+  | {
+      ok: false;
+      reason: "missing_signature" | "verification_failed";
+      error: string;
+    };
+
 export async function verifyQStashRequest(
   request: Request,
   rawBody: string
-): Promise<boolean> {
+): Promise<QStashVerificationResult> {
   const signature = request.headers.get("upstash-signature");
   if (!signature) {
-    return false;
+    return {
+      ok: false,
+      reason: "missing_signature",
+      error: "Missing upstash-signature header",
+    };
   }
 
   try {
@@ -27,8 +39,14 @@ export async function verifyQStashRequest(
       signature,
       body: rawBody,
     });
-    return true;
-  } catch {
-    return false;
+    return { ok: true };
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "QStash signature verification failed";
+    return {
+      ok: false,
+      reason: "verification_failed",
+      error: message,
+    };
   }
 }

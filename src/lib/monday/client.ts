@@ -6,7 +6,7 @@ import {
   MONDAY_COLUMNS,
   passResultLabelFromSubmission,
 } from "./columns";
-import { formatMondayDateTime } from "./datetime";
+import { formatMondayDateTime, formatMondayJerusalemWallClock } from "./datetime";
 import type { ConfirmStatus } from "./columns";
 import type {
   CandidateRecord,
@@ -277,7 +277,7 @@ async function changeCandidateScheduledAtColumn(
   itemId: string,
   scheduledAt: Date
 ): Promise<void> {
-  const { date, time } = formatMondayDateTime(scheduledAt);
+  const { date, time } = formatMondayJerusalemWallClock(scheduledAt);
   const columnValues = JSON.stringify({
     [MONDAY_COLUMNS.scheduledAt]: { date, time },
   });
@@ -319,7 +319,7 @@ export async function confirmCandidateExamSchedule(
   itemId: string,
   scheduledAt: Date
 ): Promise<void> {
-  const { date, time } = formatMondayDateTime(scheduledAt);
+  const { date, time } = formatMondayJerusalemWallClock(scheduledAt);
   const columnValues = JSON.stringify({
     [MONDAY_COLUMNS.scheduledAt]: { date, time },
     [MONDAY_COLUMNS.statusConfirm]: { label: CONFIRM_STATUS.APPROVED },

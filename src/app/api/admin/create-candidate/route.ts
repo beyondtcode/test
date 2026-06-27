@@ -15,7 +15,7 @@ import {
   MONDAY_TEAM_EMAIL,
   type CandidateTrack,
 } from "@/lib/monday";
-import { formatMondayDateTime } from "@/lib/monday/datetime";
+import { formatMondayJerusalemWallClock } from "@/lib/monday/datetime";
 import {
   createCandidateItemInGroup,
   getPrivateCandidatesGroupId,
@@ -126,7 +126,7 @@ export async function POST(request: Request) {
     }
 
     const token = generateCandidateMagicToken();
-    const { date, time } = formatMondayDateTime(scheduledAt);
+    const { date, time } = formatMondayJerusalemWallClock(scheduledAt);
 
     const columnValues = {
       [MONDAY_COLUMNS.email]: {

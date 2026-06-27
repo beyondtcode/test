@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { MONDAY_COLUMNS } from "@/lib/monday/columns";
 import {
   examInviteIneligibilityReason,
   getScheduledCandidateRow,
@@ -14,55 +15,154 @@ type WebhookBody = {
   itemId?: unknown;
 };
 
+function ineligibilityDetail(
+  reason: NonNullable<ReturnType<typeof examInviteIneligibilityReason>>,
+  row: {
+    examStatus: string;
+    statusConfirm: string;
+    email: string;
+    magicLinkToken: string;
+    examTypeLabel: string;
+    scheduledDate: string;
+    scheduledTime: string;
+  }
+): string {
+  switch (reason) {
+    case "placeholder_date":
+      return `scheduled date is still the placeholder (${row.scheduledDate} ${row.scheduledTime})`;
+    case "not_approved":
+      return `statusConfirm is "${row.statusConfirm}" (expected "אושר")`;
+    case "exam_already_started":
+      return `examStatus is "${row.examStatus}" (expected "טרם התחיל")`;
+    case "missing_email_or_token":
+      return `email present=${Boolean(row.email.trim())}, magicLinkToken present=${Boolean(row.magicLinkToken.trim())}`;
+    case "invalid_exam_type":
+      return `examType label "${row.examTypeLabel}" is not a recognized exam type`;
+    default:
+      return reason;
+  }
+}
+
 export async function POST(request: Request) {
-  const rawBody = await request.text();
+  console.info("[exam-invite-alarm] webhook triggered");
 
-  if (!(await verifyQStashRequest(request, rawBody))) {
-    console.warn("[exam-invite-alarm] webhook rejected: invalid QStash signature");
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  let body: WebhookBody;
+  let rawBody: string;
   try {
-    body = JSON.parse(rawBody) as WebhookBody;
-  } catch {
-    console.warn("[exam-invite-alarm] webhook rejected: invalid JSON body");
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    rawBody = await request.text();
+  } catch (error) {
+    console.error("[exam-invite-alarm] failed to read request body:", error);
+    return NextResponse.json({ error: "Failed to read body" }, { status: 400 });
   }
-
-  const itemId =
-    typeof body.itemId === "string" && body.itemId.trim()
-      ? body.itemId.trim()
-      : null;
-
-  if (!itemId) {
-    console.warn("[exam-invite-alarm] webhook rejected: missing itemId");
-    return NextResponse.json({ error: "Missing itemId" }, { status: 400 });
-  }
-
-  console.info("[exam-invite-alarm] webhook fired", { itemId });
 
   try {
+    const verification = await verifyQStashRequest(request, rawBody);
+    if (!verification.ok) {
+      console.error("[exam-invite-alarm] QStash signature verification failed", {
+        reason: verification.reason,
+        error: verification.error,
+      });
+      // #region agent log
+      fetch("http://127.0.0.1:7488/ingest/5e9b5d4c-503c-4b19-9abd-9ba9afdbe29a", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Debug-Session-Id": "0f3fda",
+        },
+        body: JSON.stringify({
+          sessionId: "0f3fda",
+          location: "send-exam-invite/route.ts:signature",
+          message: "QStash signature rejected",
+          data: { reason: verification.reason, error: verification.error },
+          timestamp: Date.now(),
+          hypothesisId: "H2-signature",
+        }),
+      }).catch(() => {});
+      // #endregion
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    console.info("[exam-invite-alarm] QStash signature verified");
+
+    let body: WebhookBody;
+    try {
+      body = JSON.parse(rawBody) as WebhookBody;
+    } catch (error) {
+      console.error("[exam-invite-alarm] invalid JSON body:", error);
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
+
+    const itemId =
+      typeof body.itemId === "string" && body.itemId.trim()
+        ? body.itemId.trim()
+        : null;
+
+    if (!itemId) {
+      console.warn("[exam-invite-alarm] webhook rejected: missing itemId", { body });
+      return NextResponse.json({ error: "Missing itemId" }, { status: 400 });
+    }
+
+    console.info("[exam-invite-alarm] processing item", { itemId });
+
     const row = await getScheduledCandidateRow(itemId);
 
     if (!row) {
-      console.warn("[exam-invite-alarm] skipped: item not found", { itemId });
+      console.warn("[exam-invite-alarm] skipped: item not found in Monday", { itemId });
       return NextResponse.json(
         { itemId, status: "skipped", reason: "not_found" },
         { status: 200 }
       );
     }
 
+    console.info("[exam-invite-alarm] Monday item fetched", {
+      itemId,
+      name: row.name,
+      scheduledDate: row.scheduledDate,
+      scheduledTime: row.scheduledTime,
+      examStatus: row.examStatus,
+      statusConfirm: row.statusConfirm,
+      statusColumn: MONDAY_COLUMNS.statusConfirm,
+      emailPresent: Boolean(row.email.trim()),
+      magicLinkTokenPresent: Boolean(row.magicLinkToken.trim()),
+      examTypeLabel: row.examTypeLabel,
+    });
+
     const ineligibility = examInviteIneligibilityReason(row);
     if (ineligibility) {
-      console.warn("[exam-invite-alarm] skipped: not eligible", {
-        itemId,
-        reason: ineligibility,
-        statusConfirm: row.statusConfirm,
-        examStatus: row.examStatus,
-        scheduledDate: row.scheduledDate,
-        scheduledTime: row.scheduledTime,
-      });
+      const detail = ineligibilityDetail(ineligibility, row);
+      console.warn(
+        `[SKIP] Candidate ${itemId} is not eligible because: ${detail}`,
+        {
+          itemId,
+          reason: ineligibility,
+          examStatus: row.examStatus,
+          statusConfirm: row.statusConfirm,
+          statusColumn: MONDAY_COLUMNS.statusConfirm,
+          emailPresent: Boolean(row.email.trim()),
+        }
+      );
+      // #region agent log
+      fetch("http://127.0.0.1:7488/ingest/5e9b5d4c-503c-4b19-9abd-9ba9afdbe29a", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Debug-Session-Id": "0f3fda",
+        },
+        body: JSON.stringify({
+          sessionId: "0f3fda",
+          location: "send-exam-invite/route.ts:eligibility",
+          message: "Candidate ineligible",
+          data: {
+            itemId,
+            reason: ineligibility,
+            detail,
+            examStatus: row.examStatus,
+            statusConfirm: row.statusConfirm,
+          },
+          timestamp: Date.now(),
+          hypothesisId: "H3-eligibility",
+        }),
+      }).catch(() => {});
+      // #endregion
       return NextResponse.json(
         { itemId, status: "skipped", reason: "not_eligible", detail: ineligibility },
         { status: 200 }
@@ -83,17 +183,40 @@ export async function POST(request: Request) {
       );
     }
 
-    await triggerSuperMailExamDispatch(itemId);
-
-    console.info("[exam-invite-alarm] triggered SuperMail dispatch", {
+    console.info("[exam-invite-alarm] triggering SuperMail dispatch", {
       itemId,
       scheduledAt: scheduledAt?.toISOString(),
     });
 
+    await triggerSuperMailExamDispatch(itemId);
+
+    console.info("[exam-invite-alarm] SuperMail dispatch triggered successfully", {
+      itemId,
+      scheduledAt: scheduledAt?.toISOString(),
+    });
+
+    // #region agent log
+    fetch("http://127.0.0.1:7488/ingest/5e9b5d4c-503c-4b19-9abd-9ba9afdbe29a", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Debug-Session-Id": "0f3fda",
+      },
+      body: JSON.stringify({
+        sessionId: "0f3fda",
+        location: "send-exam-invite/route.ts:success",
+        message: "SuperMail dispatch triggered",
+        data: { itemId, scheduledAt: scheduledAt?.toISOString() },
+        timestamp: Date.now(),
+        hypothesisId: "H4-success",
+      }),
+    }).catch(() => {});
+    // #endregion
+
     return NextResponse.json({ itemId, status: "triggered" });
   } catch (error) {
-    console.error(`[exam-invite-alarm] failed for item ${itemId}:`, error);
+    console.error("[exam-invite-alarm] unhandled error:", error);
     const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message, itemId }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

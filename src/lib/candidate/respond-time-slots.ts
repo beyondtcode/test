@@ -1,5 +1,4 @@
 import {
-  jerusalemWallClockFromMondayDateColumn,
   jerusalemWallClockToInstant,
 } from "@/lib/monday/datetime";
 
@@ -30,16 +29,12 @@ export function formatAdminScheduledDateLabel(dateKey: string): string {
   return `התאריך שנבחר עבורך למבחן: יום ${weekday}, ${day}/${month}/${year}`;
 }
 
-/** dd/mm/yyyy for exam-confirm flow (Jerusalem local). */
+/** dd/mm/yyyy for exam-confirm flow (Jerusalem local, stored directly on Monday). */
 export function formatScheduledExamDateDisplay(
   mondayDateKey: string,
-  mondayTime: string
+  _mondayTime: string
 ): string {
-  const { dateKey } = jerusalemWallClockFromMondayDateColumn(
-    mondayDateKey,
-    mondayTime
-  );
-  const match = dateKey.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const match = mondayDateKey.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!match) {
     return "";
   }
@@ -48,14 +43,11 @@ export function formatScheduledExamDateDisplay(
   return `${day}/${month}/${year}`;
 }
 
-/** HH:mm for exam-confirm flow (Jerusalem local). */
+/** HH:mm for exam-confirm flow (Jerusalem local, stored directly on Monday). */
 export function formatScheduledExamTimeDisplay(
-  mondayDateKey: string,
+  _mondayDateKey: string,
   mondayTime: string
 ): string {
-  const { timeHm } = jerusalemWallClockFromMondayDateColumn(
-    mondayDateKey,
-    mondayTime
-  );
-  return timeHm;
+  const match = mondayTime.trim().match(/^(\d{2}):(\d{2})/);
+  return match ? `${match[1]}:${match[2]}` : "";
 }
