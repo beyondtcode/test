@@ -6,8 +6,20 @@ import { getQStashClient } from "./client";
 
 const EXAM_INVITE_DEDUP_PREFIX = "exam-invite";
 
+/** Stable per-item key used as QStash label / flow-control key (not as a publish dedup id). */
 export function examInviteDeduplicationId(itemId: string): string {
   return `${EXAM_INVITE_DEDUP_PREFIX}-${itemId}`;
+}
+
+/**
+ * Fresh id for every publish. QStash remembers deduplicationId for 90 days, including
+ * after cancel — reusing `exam-invite-{itemId}` silently drops reschedules after confirm.
+ */
+function examInvitePublishDeduplicationId(
+  itemId: string,
+  notBefore: number
+): string {
+  return `${examInviteDeduplicationId(itemId)}-${notBefore}-${crypto.randomUUID()}`;
 }
 
 function examInviteWebhookUrl(): string {
@@ -58,6 +70,54 @@ export async function cancelExamInviteAlarm(itemId: string): Promise<void> {
   });
 }
 
+type PublishedExamInviteAlarm = {
+  messageId: string;
+  notBefore: number;
+  destination: string;
+  deduplicationId: string;
+};
+
+async function publishExamInviteAlarm(
+  itemId: string,
+  scheduledAt: Date
+): Promise<PublishedExamInviteAlarm> {
+  const notBefore = Math.floor(scheduledAt.getTime() / 1000);
+  const destination = examInviteWebhookUrl();
+  assertPublicExamInviteWebhookUrl(destination);
+  const alarmKey = examInviteDeduplicationId(itemId);
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const deduplicationId = examInvitePublishDeduplicationId(itemId, notBefore);
+    const publishResult = await getQStashClient().publishJSON({
+      url: destination,
+      body: { itemId },
+      notBefore,
+      deduplicationId,
+      label: alarmKey,
+      flowControl: { key: alarmKey, parallelism: 1 },
+    });
+
+    if (!publishResult.deduplicated) {
+      return {
+        messageId: publishResult.messageId,
+        notBefore,
+        destination,
+        deduplicationId,
+      };
+    }
+
+    console.warn("[exam-invite-alarm] publish deduplicated, retrying with new id", {
+      itemId,
+      messageId: publishResult.messageId,
+      attempt,
+    });
+  }
+
+  throw new Error(
+    `QStash deduplicated exam invite for item ${itemId} after retry`
+  );
+}
+
 /**
  * Schedules a single QStash delivery for one Monday item at the exam start time.
  * Any prior pending alarm for the same item is cancelled first.
@@ -68,27 +128,15 @@ export async function scheduleExamInviteAlarm(
 ): Promise<void> {
   await cancelExamInviteAlarm(itemId);
 
-  const notBefore = Math.floor(scheduledAt.getTime() / 1000);
-  const destination = examInviteWebhookUrl();
-  assertPublicExamInviteWebhookUrl(destination);
-  const alarmKey = examInviteDeduplicationId(itemId);
-
-  const publishResult = await getQStashClient().publishJSON({
-    url: destination,
-    body: { itemId },
-    notBefore,
-    deduplicationId: alarmKey,
-    label: alarmKey,
-    flowControl: { key: alarmKey, parallelism: 1 },
-  });
+  const published = await publishExamInviteAlarm(itemId, scheduledAt);
 
   console.info("[exam-invite-alarm] scheduled", {
     itemId,
-    messageId: publishResult.messageId,
+    messageId: published.messageId,
     fireAt: scheduledAt.toISOString(),
-    notBefore,
-    destination,
-    deduplicationId: alarmKey,
+    notBefore: published.notBefore,
+    destination: published.destination,
+    deduplicationId: published.deduplicationId,
   });
 }
 
@@ -240,7 +288,7 @@ export async function scheduleExamInviteAlarmUnlessPending(
   try {
     const pending = await getPendingExamInviteAlarm(itemId).catch((error) => {
       console.warn(
-        `[exam-invite-alarm] could not query pending alarm for item ${itemId}; relying on deduplication`,
+        `[exam-invite-alarm] could not query pending alarm for item ${itemId}; publishing a new one`,
         error
       );
       return null;
@@ -259,39 +307,15 @@ export async function scheduleExamInviteAlarmUnlessPending(
       };
     }
 
-    const notBefore = Math.floor(scheduledAt.getTime() / 1000);
-    const destination = examInviteWebhookUrl();
-    assertPublicExamInviteWebhookUrl(destination);
-    const alarmKey = examInviteDeduplicationId(itemId);
-
-    const publishResult = await getQStashClient().publishJSON({
-      url: destination,
-      body: { itemId },
-      notBefore,
-      deduplicationId: alarmKey,
-      label: alarmKey,
-      flowControl: { key: alarmKey, parallelism: 1 },
-    });
-
-    if (publishResult.deduplicated) {
-      console.info("[exam-invite-alarm] skipped (QStash deduplicated)", {
-        itemId,
-        messageId: publishResult.messageId,
-      });
-      return {
-        status: "skipped",
-        itemId,
-        reason: "already_scheduled",
-      };
-    }
+    const published = await publishExamInviteAlarm(itemId, scheduledAt);
 
     console.info("[exam-invite-alarm] scheduled (unless-pending)", {
       itemId,
-      messageId: publishResult.messageId,
+      messageId: published.messageId,
       fireAt: scheduledAt.toISOString(),
-      notBefore,
-      destination,
-      deduplicationId: alarmKey,
+      notBefore: published.notBefore,
+      destination: published.destination,
+      deduplicationId: published.deduplicationId,
     });
 
     return {

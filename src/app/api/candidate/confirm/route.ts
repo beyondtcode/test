@@ -129,16 +129,16 @@ export async function POST(request: Request) {
 
     const { row } = resolved;
 
+    if (row.statusConfirm !== CONFIRM_STATUS.APPROVED) {
+      await updateCandidateConfirmStatus(row.itemId, CONFIRM_STATUS.APPROVED);
+    }
+
     const examInviteSchedule = await scheduleExamInviteFromRowWithResult(row);
     if (examInviteSchedule.status !== "scheduled") {
       console.error(
         `[api/candidate/confirm] QStash schedule issue for item ${row.itemId}:`,
         examInviteSchedule
       );
-    }
-
-    if (row.statusConfirm !== CONFIRM_STATUS.APPROVED) {
-      await updateCandidateConfirmStatus(row.itemId, CONFIRM_STATUS.APPROVED);
     }
 
     return NextResponse.json({ ok: true, examInviteSchedule });

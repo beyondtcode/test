@@ -66,12 +66,21 @@ function statusLabelFromValue(value: unknown): string | null {
     return null;
   }
 
-  const label = (parsed as { label?: unknown }).label;
-  if (label && typeof label === "object") {
-    const text = (label as { text?: unknown }).text;
+  const obj = parsed as { label?: unknown; text?: unknown };
+
+  if (typeof obj.label === "string" && obj.label.trim()) {
+    return obj.label.trim();
+  }
+
+  if (obj.label && typeof obj.label === "object") {
+    const text = (obj.label as { text?: unknown }).text;
     if (typeof text === "string" && text.trim()) {
       return text.trim();
     }
+  }
+
+  if (typeof obj.text === "string" && obj.text.trim()) {
+    return obj.text.trim();
   }
 
   return null;
