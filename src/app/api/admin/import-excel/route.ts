@@ -13,8 +13,10 @@ import {
   createCandidateItemInGroup,
   createMondayGroup,
   groupNameFromFilename,
-  scheduleExamDateForGroup,
+  setCandidateTrack,
 } from "@/lib/monday/groups";
+import { formatMondayDateTime } from "@/lib/monday/datetime";
+import { scheduleExamInviteAlarmWithResult } from "@/lib/qstash/schedule-exam-invite";
 import {
   DEFAULT_CANDIDATE_TRACK,
   isCandidateTrack,
@@ -146,7 +148,20 @@ export async function POST(request: Request) {
     const groupId = await createMondayGroup(groupName);
 
     const errors: ImportRowError[] = [];
+    const qstashFailed: Array<{ itemId: string; name: string; message: string }> = [];
     let imported = 0;
+
+    // Monday sends the attendance-confirmation email from an automation that runs
+    // when an item is created (and only if it has a candidate track). So that each
+    // candidate gets exactly one email, with the right date:
+    // - date chosen in the form: the item is created with the real date and track,
+    //   like the single-candidate form (one email, no later date change);
+    // - no date yet: the item is created with the placeholder date and WITHOUT the
+    //   track (no email), and the track is set right after. The email is sent later,
+    //   when a date is set for the group.
+    const scheduledColumn = scheduledAt
+      ? formatMondayDateTime(scheduledAt)
+      : placeholderScheduledColumnValue();
 
     for (const rawRow of parsed.rows) {
       const row = sanitizeImportRow(rawRow);
@@ -154,15 +169,29 @@ export async function POST(request: Request) {
 
       try {
         const token = generateCandidateMagicToken();
-        const columnValues = {
+        const allValues: Record<string, unknown> = {
           ...buildImportColumnValues(row, token, candidateTrack),
-          [MONDAY_COLUMNS.scheduledAt]: placeholderScheduledColumnValue(),
+          [MONDAY_COLUMNS.scheduledAt]: scheduledColumn,
         };
-        await createCandidateItemInGroup({
+        const columnValues = { ...allValues };
+        if (!scheduledAt) {
+          delete columnValues[MONDAY_COLUMNS.candidateTrack];
+        }
+
+        const itemId = await createCandidateItemInGroup({
           groupId,
           name: itemName,
           columnValues,
         });
+
+        if (scheduledAt) {
+          const result = await scheduleExamInviteAlarmWithResult(itemId, scheduledAt);
+          if (result.status === "failed") {
+            qstashFailed.push({ itemId, name: itemName, message: result.error });
+          }
+        } else {
+          await setCandidateTrack(itemId, candidateTrack);
+        }
         imported += 1;
       } catch (rowError) {
         const message =
@@ -177,12 +206,6 @@ export async function POST(request: Request) {
       }
     }
 
-    let scheduleResult: Awaited<ReturnType<typeof scheduleExamDateForGroup>> | null =
-      null;
-    if (scheduledAt && imported > 0) {
-      scheduleResult = await scheduleExamDateForGroup(groupId, scheduledAt);
-    }
-
     return NextResponse.json({
       groupId,
       groupName,
@@ -193,11 +216,11 @@ export async function POST(request: Request) {
       ...(scheduledAt
         ? {
             scheduledAt: scheduledAt.toISOString(),
-            scheduleUpdated: scheduleResult?.updated ?? 0,
-            scheduleFailed: scheduleResult?.failed.length ?? 0,
-            scheduleErrors: scheduleResult?.failed ?? [],
-            qstashFailed: scheduleResult?.qstashFailed.length ?? 0,
-            qstashErrors: scheduleResult?.qstashFailed ?? [],
+            scheduleUpdated: imported,
+            scheduleFailed: 0,
+            scheduleErrors: [],
+            qstashFailed: qstashFailed.length,
+            qstashErrors: qstashFailed,
           }
         : {}),
     });
