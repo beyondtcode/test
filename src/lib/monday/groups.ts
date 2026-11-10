@@ -173,6 +173,39 @@ export function buildImportColumnValues(
   return values;
 }
 
+/** Sets the candidate track after creation (see import-excel: avoids the
+ * item-created email automation for candidates that have no exam date yet). */
+export async function setCandidateTrack(
+  itemId: string,
+  candidateTrack: CandidateTrack
+): Promise<void> {
+  await mondayFetch<{ change_multiple_column_values: { id: string } }>({
+    query: `
+      mutation SetCandidateTrack(
+        $boardId: ID!
+        $itemId: ID!
+        $columnValues: JSON!
+      ) {
+        change_multiple_column_values(
+          board_id: $boardId
+          item_id: $itemId
+          column_values: $columnValues
+          create_labels_if_missing: true
+        ) {
+          id
+        }
+      }
+    `,
+    variables: {
+      boardId: mondayConfig.boardId,
+      itemId,
+      columnValues: JSON.stringify({
+        [MONDAY_COLUMNS.candidateTrack]: { label: candidateTrack },
+      }),
+    },
+  });
+}
+
 export async function createCandidateItemInGroup({
   groupId,
   name,
